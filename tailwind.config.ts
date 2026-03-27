@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ['Georgia', 'Times New Roman', 'serif'],
+        sans: ['DM Sans', 'Segoe UI', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -47,6 +51,25 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        rcm: {
+          900: "hsl(var(--rcm-900))",
+          800: "hsl(var(--rcm-800))",
+          700: "hsl(var(--rcm-700))",
+          600: "hsl(var(--rcm-600))",
+          500: "hsl(var(--rcm-500))",
+          400: "hsl(var(--rcm-400))",
+          200: "hsl(var(--rcm-200))",
+          100: "hsl(var(--rcm-100))",
+          50: "hsl(var(--rcm-50))",
+        },
+        status: {
+          good: "hsl(var(--green))",
+          "good-bg": "hsl(var(--green-bg))",
+          warning: "hsl(var(--amber))",
+          "warning-bg": "hsl(var(--amber-bg))",
+          info: "hsl(var(--blue))",
+          "info-bg": "hsl(var(--blue-bg))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -63,22 +86,19 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      boxShadow: {
+        card: "var(--shadow-sm)",
+        "card-hover": "var(--shadow-md)",
+        elevated: "var(--shadow-lg)",
+      },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
