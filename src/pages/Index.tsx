@@ -1,4 +1,5 @@
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
+import { ChartPrefsProvider } from '@/contexts/ChartPrefsContext';
 import { UploadScreen } from '@/components/UploadScreen';
 import { TopBar, NavTabs, FilterBar } from '@/components/dashboard/DashboardLayout';
 import { OverviewTab } from '@/components/dashboard/OverviewTab';
@@ -36,7 +37,9 @@ function DashboardContent() {
 
 const Index = () => (
   <DashboardProvider>
-    <DashboardContent />
+    <ChartPrefsProvider>
+      <DashboardContent />
+    </ChartPrefsProvider>
   </DashboardProvider>
 );
 

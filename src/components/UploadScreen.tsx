@@ -50,7 +50,7 @@ export function UploadScreen() {
       </div>
 
       <div className="bg-card rounded-2xl p-11 w-[520px] max-w-[92vw] shadow-elevated relative z-10">
-        <h2 className="font-display text-xl font-bold text-foreground mb-1">Upload IHX Claims Export</h2>
+        <h2 className="font-display text-xl font-bold text-foreground mb-1">Upload Claims Export</h2>
         <p className="text-[13px] text-muted-foreground mb-6">
           Drop your Excel file to generate full KPI analysis — financials, TAT, denials, AR aging, payer benchmarks and revenue leakage.
         </p>
@@ -66,7 +66,7 @@ export function UploadScreen() {
         >
           <div className="text-4xl mb-2">📂</div>
           <div className="text-sm font-medium text-foreground/70">Drop .xlsx here or click to browse</div>
-          <div className="text-xs text-muted-foreground mt-1">Standard IHX export format · All 39 columns supported</div>
+          <div className="text-xs text-muted-foreground mt-1">Standard claims export format · All 39 columns supported</div>
         </div>
 
         <input
