@@ -81,7 +81,13 @@ export function OverviewTab() {
           </Pie><Tooltip formatter={(v: number) => v.toLocaleString()} /><Legend /></PieChart></ResponsiveContainer>
         </ChartCard>
         <ChartCard title="Monthly Claims Volume" subtitle="Admissions by month">
-          <ResponsiveContainer><BarChart data={monthlyData}><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" fill="#EF4444" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>
+          <ResponsiveContainer>
+            {chartType === 'line' ? (
+              <LineChart data={monthlyData}><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Line type="monotone" dataKey="value" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} /></LineChart>
+            ) : (
+              <BarChart data={monthlyData}><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" fill="#EF4444" radius={[4, 4, 0, 0]} /></BarChart>
+            )}
+          </ResponsiveContainer>
         </ChartCard>
         <ChartCard title="Top TPAs by Volume" subtitle="Claims count" height="300px">
           <ResponsiveContainer><BarChart data={volData} layout="vertical"><XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="value" radius={[0, 4, 4, 0]}>
