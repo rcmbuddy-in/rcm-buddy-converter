@@ -228,7 +228,7 @@ function buildPayerRecs(tpaArr: any[]) {
 
 function buildQuickWins(avgSub: number, aged180: any, leakageData: any, paDenR: number) {
   const wins = [];
-  if (avgSub > 7) wins.push({ title: 'Same-day discharge billing', body: `Mandate IHX upload within 24 hours. Can reduce submission TAT from ${fN(avgSub)} to under 7 days.` });
+  if (avgSub > 7) wins.push({ title: 'Same-day discharge billing', body: `Mandate claim upload within 24 hours. Can reduce submission TAT from ${fN(avgSub)} to under 7 days.` });
   if (aged180.cnt > 0) wins.push({ title: 'Clear the 180+ day bucket', body: `Dedicate an AR officer for 2 weeks to recover ${aged180.cnt} claims worth ${fmt(aged180.val)}.` });
   if (leakageData.uncollected > 0) wins.push({ title: 'Reconcile approved-but-unsettled claims', body: `Chase UTR/cheque issuance. ${fmt(leakageData.uncollected)} is already approved — just needs collection.` });
   if (paDenR > 15) wins.push({ title: 'Pre-auth documentation template', body: `Create TPA-specific templates for top 5 denied procedures. Reduces denials by 20-30%.` });
