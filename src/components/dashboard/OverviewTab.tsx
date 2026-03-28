@@ -1,4 +1,5 @@
 import { useDashboard } from '@/contexts/DashboardContext';
+import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { SectionHeading } from './SectionHeading';
