@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { exportTabToPDF } from '@/lib/pdf-export';
+import { captureDashboardCanvas, exportTabToPDF, exportTabsToPDF } from '@/lib/pdf-export';
 
 const TABS = [
   { id: 'overview', label: 'Overview Dashboard' },
@@ -40,6 +40,8 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
     if (selectedTabs.length === 0) return;
     setExporting(true);
 
+    const captures: Array<{ tabId: string; canvas: HTMLCanvasElement }> = [];
+
     for (let i = 0; i < selectedTabs.length; i++) {
       const tabId = selectedTabs[i];
       const tabLabel = TABS.find(t => t.id === tabId)?.label || tabId;
@@ -53,7 +55,16 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
       if (mode === 'print') {
         window.print();
       } else {
-        await exportTabToPDF(tabId, globalData.hospitalName, globalData.dateRange);
+        const canvas = await captureDashboardCanvas();
+        if (canvas) captures.push({ tabId, canvas });
+      }
+    }
+
+    if (mode === 'pdf') {
+      if (captures.length === 1) {
+        await exportTabToPDF(captures[0].tabId, globalData.hospitalName, globalData.dateRange);
+      } else if (captures.length > 1) {
+        await exportTabsToPDF(captures, globalData.hospitalName, globalData.dateRange);
       }
     }
 
