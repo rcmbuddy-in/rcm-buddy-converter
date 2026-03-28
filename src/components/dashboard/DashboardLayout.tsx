@@ -50,6 +50,13 @@ export function TopBar() {
       </div>
       <div className="flex gap-2 items-center">
         <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="bg-primary-foreground/15 border border-primary-foreground/25 text-primary-foreground rounded-lg px-3.5 py-1.5 text-xs font-semibold hover:bg-primary-foreground/25 transition-colors disabled:opacity-50"
+        >
+          {exporting ? '⏳ Exporting…' : '📄 Export PDF'}
+        </button>
+        <button
           onClick={resetData}
           className="bg-primary-foreground text-rcm-700 border-none rounded-lg px-3.5 py-1.5 text-xs font-semibold hover:bg-rcm-50 transition-colors"
         >
