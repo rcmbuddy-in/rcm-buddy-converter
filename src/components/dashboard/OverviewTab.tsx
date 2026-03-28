@@ -11,6 +11,7 @@ import {
 
 export function OverviewTab() {
   const { globalData, getGroupKey } = useDashboard();
+  const { chartType } = useChartPrefs();
   if (!globalData) return null;
   const { data: d, n, totalClaimed, totalApproved, totalSettled } = globalData;
 
