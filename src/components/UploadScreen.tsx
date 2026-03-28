@@ -66,7 +66,7 @@ export function UploadScreen() {
         >
           <div className="text-4xl mb-2">📂</div>
           <div className="text-sm font-medium text-foreground/70">Drop .xlsx here or click to browse</div>
-          <div className="text-xs text-muted-foreground mt-1">Standard IHX export format · All 39 columns supported</div>
+          <div className="text-xs text-muted-foreground mt-1">Standard claims export format · All 39 columns supported</div>
         </div>
 
         <input
