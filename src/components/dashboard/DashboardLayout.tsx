@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { exportTabToPDF } from '@/lib/pdf-export';
 import logo from '@/assets/rcm-buddy-logo.png';
 
 const TABS = [
@@ -13,8 +15,18 @@ const TABS = [
 ];
 
 export function TopBar() {
-  const { globalData, resetData } = useDashboard();
+  const { globalData, resetData, activeTab } = useDashboard();
+  const [exporting, setExporting] = useState(false);
   if (!globalData) return null;
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportTabToPDF(activeTab, globalData.hospitalName, globalData.dateRange);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="topbar-gradient px-7 h-[62px] flex items-center justify-between sticky top-0 z-50 shadow-elevated no-print">
@@ -37,6 +49,13 @@ export function TopBar() {
         </span>
       </div>
       <div className="flex gap-2 items-center">
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="bg-primary-foreground/15 border border-primary-foreground/25 text-primary-foreground rounded-lg px-3.5 py-1.5 text-xs font-semibold hover:bg-primary-foreground/25 transition-colors disabled:opacity-50"
+        >
+          {exporting ? '⏳ Exporting…' : '📄 Export PDF'}
+        </button>
         <button
           onClick={resetData}
           className="bg-primary-foreground text-rcm-700 border-none rounded-lg px-3.5 py-1.5 text-xs font-semibold hover:bg-rcm-50 transition-colors"
