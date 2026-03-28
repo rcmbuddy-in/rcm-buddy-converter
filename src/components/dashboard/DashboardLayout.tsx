@@ -15,8 +15,18 @@ const TABS = [
 ];
 
 export function TopBar() {
-  const { globalData, resetData } = useDashboard();
+  const { globalData, resetData, activeTab } = useDashboard();
+  const [exporting, setExporting] = useState(false);
   if (!globalData) return null;
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportTabToPDF(activeTab, globalData.hospitalName, globalData.dateRange);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="topbar-gradient px-7 h-[62px] flex items-center justify-between sticky top-0 z-50 shadow-elevated no-print">
