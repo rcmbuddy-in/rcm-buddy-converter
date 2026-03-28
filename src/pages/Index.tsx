@@ -20,7 +20,7 @@ function DashboardContent() {
       <TopBar />
       <NavTabs />
       <FilterBar />
-      <div className="max-w-[1440px] mx-auto px-7 py-6">
+      <div id="dashboard-tab-content" className="max-w-[1440px] mx-auto px-7 py-6">
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'financial' && <FinancialTab />}
         {activeTab === 'tat' && <TATTab />}

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { exportTabToPDF } from '@/lib/pdf-export';
 import logo from '@/assets/rcm-buddy-logo.png';
 
 const TABS = [
