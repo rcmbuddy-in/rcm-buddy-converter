@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { captureDashboardCanvas, exportTabToPDF, exportTabsToPDF } from '@/lib/pdf-export';
+import { captureElementCanvas, exportTabsToPDF, printCapturedTabs, waitForExportPaint } from '@/lib/pdf-export';
+import { ExportRenderSurface } from './ExportRenderSurface';
 
 const TABS = [
   { id: 'overview', label: 'Overview Dashboard' },
@@ -19,11 +20,12 @@ interface ExportDialogProps {
 }
 
 export function ExportDialog({ open, onClose }: ExportDialogProps) {
-  const { globalData, activeTab, setActiveTab } = useDashboard();
+  const { globalData, activeTab } = useDashboard();
   const [selectedTabs, setSelectedTabs] = useState<string[]>([activeTab]);
   const [mode, setMode] = useState<'pdf' | 'print'>('pdf');
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState('');
+  const [renderTabs, setRenderTabs] = useState<string[]>([]);
 
   if (!open || !globalData) return null;
 
@@ -39,42 +41,43 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
   const handleExport = async () => {
     if (selectedTabs.length === 0) return;
     setExporting(true);
+    setRenderTabs(selectedTabs);
 
     const captures: Array<{ tabId: string; canvas: HTMLCanvasElement }> = [];
 
-    for (let i = 0; i < selectedTabs.length; i++) {
-      const tabId = selectedTabs[i];
-      const tabLabel = TABS.find(t => t.id === tabId)?.label || tabId;
-      setProgress(`Rendering ${tabLabel}… (${i + 1}/${selectedTabs.length})`);
+    try {
+      await waitForExportPaint(900);
 
-      // Switch to the tab so it renders
-      setActiveTab(tabId);
-      // Wait for render
-      await new Promise(r => setTimeout(r, 500));
+      for (let i = 0; i < selectedTabs.length; i++) {
+        const tabId = selectedTabs[i];
+        const tabLabel = TABS.find(t => t.id === tabId)?.label || tabId;
+        setProgress(`Rendering ${tabLabel}… (${i + 1}/${selectedTabs.length})`);
 
-      if (mode === 'print') {
-        window.print();
-      } else {
-        const canvas = await captureDashboardCanvas();
+        const section = document.querySelector<HTMLElement>(`[data-export-section="${tabId}"]`);
+        if (!section) continue;
+
+        const canvas = await captureElementCanvas(section);
         if (canvas) captures.push({ tabId, canvas });
       }
-    }
 
-    if (mode === 'pdf') {
-      if (captures.length === 1) {
-        await exportTabToPDF(captures[0].tabId, globalData.hospitalName, globalData.dateRange);
-      } else if (captures.length > 1) {
+      if (captures.length === 0) return;
+
+      if (mode === 'pdf') {
         await exportTabsToPDF(captures, globalData.hospitalName, globalData.dateRange);
+      } else {
+        await printCapturedTabs(captures, globalData.hospitalName, globalData.dateRange);
       }
+    } finally {
+      setRenderTabs([]);
+      setExporting(false);
+      setProgress('');
+      onClose();
     }
-
-    setExporting(false);
-    setProgress('');
-    onClose();
   };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <ExportRenderSurface tabs={renderTabs} />
       <div className="bg-card rounded-2xl shadow-elevated w-[480px] max-w-[92vw] p-6" onClick={e => e.stopPropagation()}>
         <h3 className="font-display text-lg font-bold text-foreground mb-1">Export / Print Report</h3>
         <p className="text-xs text-muted-foreground mb-5">Select pages and output format</p>

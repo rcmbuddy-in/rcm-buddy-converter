@@ -17,15 +17,43 @@ export interface ExportCapture {
   canvas: HTMLCanvasElement;
 }
 
-const waitForPaint = async (delay = 450) => {
+export const waitForExportPaint = async (delay = 450) => {
   await new Promise(resolve => setTimeout(resolve, delay));
   await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
   await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
 };
 
+type RestorableStyle = {
+  node: HTMLElement;
+  width: string;
+  height: string;
+  maxWidth: string;
+  overflow: string;
+};
+
+type RestorableSvg = {
+  node: SVGSVGElement;
+  widthAttr: string | null;
+  heightAttr: string | null;
+  viewBoxAttr: string | null;
+  widthStyle: string;
+  heightStyle: string;
+  overflowStyle: string;
+};
+
 const lockChartDimensions = (root: ParentNode) => {
   const sizedNodes = root.querySelectorAll<HTMLElement>('.recharts-responsive-container, .recharts-wrapper');
+  const originalStyles: RestorableStyle[] = [];
+
   sizedNodes.forEach(node => {
+    originalStyles.push({
+      node,
+      width: node.style.width,
+      height: node.style.height,
+      maxWidth: node.style.maxWidth,
+      overflow: node.style.overflow,
+    });
+
     const rect = node.getBoundingClientRect();
     if (rect.width > 0) node.style.width = `${Math.ceil(rect.width)}px`;
     if (rect.height > 0) node.style.height = `${Math.ceil(rect.height)}px`;
@@ -34,7 +62,20 @@ const lockChartDimensions = (root: ParentNode) => {
   });
 
   const svgs = root.querySelectorAll<SVGSVGElement>('svg');
+  const originalSvgStyles: RestorableSvg[] = [];
+
   svgs.forEach(svg => {
+    const svgEl = svg as unknown as HTMLElement;
+    originalSvgStyles.push({
+      node: svg,
+      widthAttr: svg.getAttribute('width'),
+      heightAttr: svg.getAttribute('height'),
+      viewBoxAttr: svg.getAttribute('viewBox'),
+      widthStyle: svgEl.style.width,
+      heightStyle: svgEl.style.height,
+      overflowStyle: svgEl.style.overflow,
+    });
+
     const rect = svg.getBoundingClientRect();
     const width = Math.ceil(rect.width || Number(svg.getAttribute('width')) || 0);
     const height = Math.ceil(rect.height || Number(svg.getAttribute('height')) || 0);
@@ -45,21 +86,44 @@ const lockChartDimensions = (root: ParentNode) => {
       svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     }
 
-    const svgEl = svg as unknown as HTMLElement;
     svgEl.style.width = width > 0 ? `${width}px` : svgEl.style.width;
     svgEl.style.height = height > 0 ? `${height}px` : svgEl.style.height;
     svgEl.style.overflow = 'visible';
   });
+
+  return () => {
+    originalStyles.forEach(({ node, width, height, maxWidth, overflow }) => {
+      node.style.width = width;
+      node.style.height = height;
+      node.style.maxWidth = maxWidth;
+      node.style.overflow = overflow;
+    });
+
+    originalSvgStyles.forEach(({ node, widthAttr, heightAttr, viewBoxAttr, widthStyle, heightStyle, overflowStyle }) => {
+      if (widthAttr === null) node.removeAttribute('width');
+      else node.setAttribute('width', widthAttr);
+
+      if (heightAttr === null) node.removeAttribute('height');
+      else node.setAttribute('height', heightAttr);
+
+      if (viewBoxAttr === null) node.removeAttribute('viewBox');
+      else node.setAttribute('viewBox', viewBoxAttr);
+
+      const svgEl = node as unknown as HTMLElement;
+      svgEl.style.width = widthStyle;
+      svgEl.style.height = heightStyle;
+      svgEl.style.overflow = overflowStyle;
+    });
+  };
 };
 
-export async function captureDashboardCanvas() {
-  const contentEl = document.getElementById('dashboard-tab-content');
+export async function captureElementCanvas(contentEl: HTMLElement) {
   if (!contentEl) return null;
 
   const noPrintEls = contentEl.querySelectorAll<HTMLElement>('.no-print');
   const previousDisplays = Array.from(noPrintEls, el => el.style.display);
 
-  lockChartDimensions(contentEl);
+  const restoreChartDimensions = lockChartDimensions(contentEl);
   noPrintEls.forEach(el => {
     el.style.display = 'none';
   });
@@ -77,12 +141,13 @@ export async function captureDashboardCanvas() {
   });
 
   try {
-    await waitForPaint();
+    await waitForExportPaint();
 
     return await html2canvas(contentEl, {
       scale: 2,
       useCORS: true,
       logging: false,
+      foreignObjectRendering: false,
       backgroundColor: '#ffffff',
       windowWidth: Math.max(1440, Math.ceil(contentEl.scrollWidth)),
       windowHeight: Math.max(window.innerHeight, Math.ceil(contentEl.scrollHeight)),
@@ -132,7 +197,16 @@ export async function captureDashboardCanvas() {
     noPrintEls.forEach((el, index) => {
       el.style.display = previousDisplays[index];
     });
+
+    restoreChartDimensions();
   }
+}
+
+export async function captureDashboardCanvas() {
+  const contentEl = document.getElementById('dashboard-tab-content');
+  if (!contentEl) return null;
+
+  return captureElementCanvas(contentEl);
 }
 
 const addPageHeader = (
@@ -200,12 +274,12 @@ const appendCanvasToPdf = (
   const startY = headerH + margin + 2;
   const scale = usableW / (imgW / 2);
   const scaledH = (imgH / 2) * scale;
-  const imgData = canvas.toDataURL('image/jpeg', 0.95);
+  const imgData = canvas.toDataURL('image/png');
 
   if (scaledH <= usableH) {
     if (startOnNewPage) pdf.addPage();
     addPageHeader(pdf, title, hospitalName, dateRange, sectionIndex, sectionCount, 0);
-    pdf.addImage(imgData, 'JPEG', margin, startY, usableW, scaledH);
+    pdf.addImage(imgData, 'PNG', margin, startY, usableW, scaledH);
     addPageFooter(pdf);
     return;
   }
@@ -227,9 +301,9 @@ const appendCanvasToPdf = (
 
     ctx.drawImage(canvas, 0, srcY, imgW, sliceH, 0, 0, imgW, sliceH);
 
-    const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+    const sliceData = sliceCanvas.toDataURL('image/png');
     const sliceScaledH = (sliceH / 2) * scale;
-    pdf.addImage(sliceData, 'JPEG', margin, startY, usableW, sliceScaledH);
+    pdf.addImage(sliceData, 'PNG', margin, startY, usableW, sliceScaledH);
     addPageFooter(pdf);
 
     srcY += pxPerPage;
@@ -276,4 +350,79 @@ export async function exportTabToPDF(
   if (!canvas) return;
 
   await exportTabsToPDF([{ tabId, canvas }], hospitalName, dateRange);
+}
+
+export async function printCapturedTabs(
+  captures: ExportCapture[],
+  hospitalName: string,
+  dateRange: string
+) {
+  if (captures.length === 0) return;
+
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1200,height=900');
+  if (!printWindow) return;
+
+  const sections = captures.map(({ tabId, canvas }, index) => {
+    const title = TAB_TITLES[tabId] || tabId;
+    const imgData = canvas.toDataURL('image/png');
+
+    return `
+      <section class="print-section ${index < captures.length - 1 ? 'page-break' : ''}">
+        <header class="print-header">
+          <div class="print-title">RCM Buddy — ${title}</div>
+          <div class="print-meta">${hospitalName} · ${dateRange}</div>
+        </header>
+        <img src="${imgData}" alt="${title}" class="print-image" />
+      </section>
+    `;
+  }).join('');
+
+  printWindow.document.open();
+  printWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <title>RCM Buddy Report</title>
+        <style>
+          :root { color-scheme: light; }
+          * { box-sizing: border-box; }
+          body { margin: 0; font-family: Arial, sans-serif; background: #fff; color: #111827; }
+          .print-section { padding: 16mm 12mm 12mm; }
+          .page-break { page-break-after: always; break-after: page; }
+          .print-header { margin-bottom: 8mm; border-bottom: 1px solid #e5e7eb; padding-bottom: 4mm; }
+          .print-title { font-size: 18px; font-weight: 700; color: #7f1d1d; }
+          .print-meta { font-size: 12px; color: #6b7280; margin-top: 4px; }
+          .print-image { display: block; width: 100%; height: auto; }
+          @page { size: A4 portrait; margin: 0; }
+        </style>
+      </head>
+      <body>${sections}</body>
+    </html>
+  `);
+  printWindow.document.close();
+
+  await new Promise<void>(resolve => {
+    const images = Array.from(printWindow.document.images);
+    if (images.length === 0) {
+      resolve();
+      return;
+    }
+
+    let loaded = 0;
+    const done = () => {
+      loaded += 1;
+      if (loaded >= images.length) resolve();
+    };
+
+    images.forEach(img => {
+      if (img.complete) done();
+      else {
+        img.onload = done;
+        img.onerror = done;
+      }
+    });
+  });
+
+  printWindow.focus();
+  printWindow.print();
 }
