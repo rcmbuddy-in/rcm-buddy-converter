@@ -10,6 +10,8 @@ import { ARTab } from '@/components/dashboard/ARTab';
 import { PayerTab } from '@/components/dashboard/PayerTab';
 import { LeakageTab } from '@/components/dashboard/LeakageTab';
 import { AIReportTab } from '@/components/dashboard/AIReportTab';
+import { MoMTab } from '@/components/dashboard/MoMTab';
+import { CorporateTab } from '@/components/dashboard/CorporateTab';
 
 function DashboardContent() {
   const { globalData, activeTab } = useDashboard();
@@ -28,6 +30,8 @@ function DashboardContent() {
         {activeTab === 'denial' && <DenialTab />}
         {activeTab === 'ar' && <ARTab />}
         {activeTab === 'payer' && <PayerTab />}
+        {activeTab === 'mom' && <MoMTab />}
+        {activeTab === 'corporate' && <CorporateTab />}
         {activeTab === 'leakage' && <LeakageTab />}
         {activeTab === 'ai-report' && <AIReportTab />}
       </div>

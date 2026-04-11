@@ -6,6 +6,8 @@ import { ARTab } from './ARTab';
 import { PayerTab } from './PayerTab';
 import { LeakageTab } from './LeakageTab';
 import { AIReportTab } from './AIReportTab';
+import { MoMTab } from './MoMTab';
+import { CorporateTab } from './CorporateTab';
 
 interface ExportRenderSurfaceProps {
   tabs: string[];
@@ -29,6 +31,10 @@ const renderTab = (tabId: string) => {
       return <LeakageTab />;
     case 'ai-report':
       return <AIReportTab />;
+    case 'mom':
+      return <MoMTab />;
+    case 'corporate':
+      return <CorporateTab />;
     default:
       return null;
   }
