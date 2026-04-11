@@ -214,7 +214,7 @@ export function MoMTab() {
           <span style={{ color: m.approvalRate > 75 ? '#15803D' : m.approvalRate > 60 ? '#854D0E' : '#9B1C1C' }}>{fN(m.approvalRate)}%</span>,
           <span style={{ color: m.collRate > 85 ? '#15803D' : m.collRate > 70 ? '#854D0E' : '#9B1C1C' }}>{fN(m.collRate)}%</span>,
           <span style={{ color: m.denialRate < 10 ? '#15803D' : m.denialRate < 20 ? '#854D0E' : '#9B1C1C' }}>{fN(m.denialRate)}%</span>,
-          m.tatVals.length ? fN(m.avgTAT) + 'd' : '—',
+          m.avgTAT > 0 ? fN(m.avgTAT) + 'd' : '—',
         ])}
       />
     </div>
