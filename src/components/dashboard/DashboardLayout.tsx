@@ -1,7 +1,12 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
+import { CalendarIcon } from 'lucide-react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { ExportDialog } from './ExportDialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 import logo from '@/assets/rcm-buddy-logo.png';
 
 const TABS = [
@@ -11,6 +16,8 @@ const TABS = [
   { id: 'denial', label: 'Denial Analysis' },
   { id: 'ar', label: 'AR Management' },
   { id: 'payer', label: 'Payer Performance' },
+  { id: 'mom', label: '📈 MoM Trends' },
+  { id: 'corporate', label: '🏢 Corporate' },
   { id: 'leakage', label: '⚠ Revenue Leakage', special: true },
   { id: 'ai-report', label: '✦ AI Report', ai: true },
 ];
@@ -87,9 +94,41 @@ export function NavTabs() {
   );
 }
 
+function DatePickerButton({ date, onSelect, placeholder }: { date: Date | undefined; onSelect: (d: Date | undefined) => void; placeholder: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 border border-border rounded-md text-xs font-medium bg-card cursor-pointer hover:border-rcm-400 transition-colors",
+            !date && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="h-3 w-3" />
+          {date ? format(date, 'dd MMM yyyy') : placeholder}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={onSelect}
+          initialFocus
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function FilterBar() {
-  const { groupBy, setGroupBy, period, setPeriod, availableYears } = useDashboard();
+  const { groupBy, setGroupBy, period, setPeriod, availableYears, dateFrom, dateTo, setDateFrom, setDateTo } = useDashboard();
   const { chartType, setChartType } = useChartPrefs();
+
+  const clearDates = () => {
+    setDateFrom(undefined);
+    if (dateTo) setTimeout(() => setDateTo(undefined), 0);
+  };
 
   return (
     <div className="bg-card border-b border-border/50 px-7 py-2.5 flex items-center gap-4 flex-wrap no-print">
@@ -102,6 +141,16 @@ export function FilterBar() {
         <option value="all">All Time</option>
         {availableYears.map(y => <option key={y} value={y}>FY {y}</option>)}
       </select>
+
+      <div className="w-px h-5 bg-border" />
+
+      <span className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">Date Range</span>
+      <DatePickerButton date={dateFrom} onSelect={setDateFrom} placeholder="From" />
+      <span className="text-muted-foreground text-xs">→</span>
+      <DatePickerButton date={dateTo} onSelect={setDateTo} placeholder="To" />
+      {(dateFrom || dateTo) && (
+        <button onClick={clearDates} className="text-[10px] text-rcm-600 hover:text-rcm-700 font-semibold">✕ Clear</button>
+      )}
 
       <div className="w-px h-5 bg-border" />
 
