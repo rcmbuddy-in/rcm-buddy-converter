@@ -45,32 +45,62 @@ export interface GlobalData {
   leakageData: any;
 }
 
+/** Case-insensitive fuzzy column matcher */
+function col(row: any, ...candidates: string[]): any {
+  // Try exact match first
+  for (const c of candidates) {
+    if (row[c] !== undefined && row[c] !== null) return row[c];
+  }
+  // Try case-insensitive match
+  const keys = Object.keys(row);
+  for (const c of candidates) {
+    const lower = c.toLowerCase().replace(/\s+/g, ' ').trim();
+    for (const k of keys) {
+      if (k.toLowerCase().replace(/\s+/g, ' ').trim() === lower) return row[k];
+    }
+  }
+  // Try partial match (candidate is substring of key or vice versa)
+  for (const c of candidates) {
+    const lower = c.toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const k of keys) {
+      const kLower = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (kLower.includes(lower) || lower.includes(kLower)) return row[k];
+    }
+  }
+  return null;
+}
+
 export function parseExcelFile(buffer: ArrayBuffer): ClaimRecord[] {
   const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const raw: any[] = XLSX.utils.sheet_to_json(ws, { defval: null });
 
+  // Log first row keys for debugging
+  if (raw.length > 0) {
+    console.log('[RCM] Excel columns found:', Object.keys(raw[0]));
+  }
+
   return raw.map(r => ({
-    hospital: r['Hospital Name'] || '',
-    admission: tDate(r['Date of Admission']),
-    discharge: tDate(r['Date of Discharge']),
-    tpa: r['TPA Name'] || 'Unknown',
-    insurer: r['Insurance Company Name'] || 'Unknown',
-    claimCreated: tDate(r['Claim Creation Date']),
-    claimedAmt: +r['Claimed Amount'] || 0,
-    approvedAmt: +r['Approved Amount'] || 0,
-    copay: +r['Copay'] || 0,
-    shortfall: +r['Shortfall Amount'] || 0,
-    discount: +r['Hospital Discount'] || 0,
-    patientPaid: +r['Patient Paid Amount'] || 0,
-    settledAmt: +r['Settled Amount'] || 0,
-    tdsAmt: +r['TDS Amount'] || 0,
-    status: r['Claim Status'] || '',
-    docSubmit: tDate(r['Document Submission Date (on IHX)']),
-    paymentDate: tDate(r['Payment Update Date']),
-    treatment: r['Treatment'] || '',
-    diagnosis: r['Diagnosis'] || '',
-    policyType: r['Policy Type (Base/Top-up)'] || '',
+    hospital: col(r, 'Hospital Name', 'HospitalName', 'Hospital') || '',
+    admission: tDate(col(r, 'Date of Admission', 'Admission Date', 'DateOfAdmission', 'DOA')),
+    discharge: tDate(col(r, 'Date of Discharge', 'Discharge Date', 'DateOfDischarge', 'DOD')),
+    tpa: col(r, 'TPA Name', 'TPAName', 'TPA') || 'Unknown',
+    insurer: col(r, 'Insurance Company Name', 'Insurer', 'Insurance Company', 'InsuranceCompany', 'Payer') || 'Unknown',
+    claimCreated: tDate(col(r, 'Claim Creation Date', 'ClaimCreationDate', 'Claim Date')),
+    claimedAmt: +(col(r, 'Claimed Amount', 'ClaimedAmount', 'Claim Amount', 'ClaimAmount') || 0),
+    approvedAmt: +(col(r, 'Approved Amount', 'ApprovedAmount', 'Approved Amt') || 0),
+    copay: +(col(r, 'Copay', 'Co-pay', 'CoPay Amount') || 0),
+    shortfall: +(col(r, 'Shortfall Amount', 'ShortfallAmount', 'Shortfall') || 0),
+    discount: +(col(r, 'Hospital Discount', 'HospitalDiscount', 'Discount') || 0),
+    patientPaid: +(col(r, 'Patient Paid Amount', 'PatientPaidAmount', 'Patient Paid') || 0),
+    settledAmt: +(col(r, 'Settled Amount', 'SettledAmount', 'Settlement Amount', 'Net Settled Amount') || 0),
+    tdsAmt: +(col(r, 'TDS Amount', 'TDSAmount', 'TDS') || 0),
+    status: col(r, 'Claim Status', 'ClaimStatus', 'Status') || '',
+    docSubmit: tDate(col(r, 'Document Submission Date (on IHX)', 'Document Submission Date', 'Doc Submission Date', 'DocSubmitDate', 'DocumentSubmissionDate')),
+    paymentDate: tDate(col(r, 'Payment Update Date', 'Payment Date', 'PaymentDate', 'PaymentUpdateDate', 'Settlement Date')),
+    treatment: col(r, 'Treatment', 'Treatment Type', 'Procedure') || '',
+    diagnosis: col(r, 'Diagnosis', 'Diagnosis Name', 'Disease') || '',
+    policyType: col(r, 'Policy Type (Base/Top-up)', 'Policy Type', 'PolicyType') || '',
   }));
 }
 

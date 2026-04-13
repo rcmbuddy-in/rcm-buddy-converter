@@ -41,13 +41,41 @@ export function sm(arr: number[]): number {
 
 export function ddiff(a: Date | null, b: Date | null): number | null {
   if (!a || !b) return null;
-  const d = (b.getTime() - a.getTime()) / 86400000;
+  // Normalize to date-only (strip time) to avoid timezone issues
+  const aDay = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const bDay = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  const d = (bDay - aDay) / 86400000;
   return d >= 0 ? Math.round(d) : null;
 }
 
 export function tDate(v: any): Date | null {
   if (!v) return null;
   if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  // Handle string dates
+  if (typeof v === 'string') {
+    // DD/MM/YYYY or DD-MM-YYYY
+    const dmy = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+    if (dmy) {
+      let [, dd, mm, yy] = dmy;
+      let year = parseInt(yy);
+      if (year < 100) year += 2000;
+      const month = parseInt(mm);
+      const day = parseInt(dd);
+      if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+      return new Date(year, month - 1, day);
+    }
+    // ISO YYYY-MM-DD
+    const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      return new Date(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3]));
+    }
+  }
+  // Number (Excel serial date)
+  if (typeof v === 'number' && v > 10000 && v < 100000) {
+    const epoch = new Date(1899, 11, 30);
+    epoch.setDate(epoch.getDate() + v);
+    return epoch;
+  }
   const d = new Date(v);
   return isNaN(d.getTime()) ? null : d;
 }
