@@ -22,6 +22,7 @@ export interface ClaimRecord {
   treatment: string;
   diagnosis: string;
   policyType: string;
+  policyHolder: string;
 }
 
 export interface GlobalData {
@@ -101,6 +102,7 @@ export function parseExcelFile(buffer: ArrayBuffer): ClaimRecord[] {
     treatment: col(r, 'Treatment', 'Treatment Type', 'Procedure') || '',
     diagnosis: col(r, 'Diagnosis', 'Diagnosis Name', 'Disease') || '',
     policyType: col(r, 'Policy Type (Base/Top-up)', 'Policy Type', 'PolicyType') || '',
+    policyHolder: col(r, 'Policy Holder Name', 'PolicyHolderName', 'Policy Holder', 'Corporate Name', 'Company Name', 'Group Name', 'Employer Name') || '',
   }));
 }
 
