@@ -46,13 +46,23 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       filtered = filtered.filter(d => d.admission && d.admission.getFullYear().toString() === p);
     }
     if (from) {
-      filtered = filtered.filter(d => d.admission && d.admission >= from);
+      // Normalize to date-only comparison (strip time)
+      const fromDay = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+      filtered = filtered.filter(d => {
+        if (!d.admission) return false;
+        const admDay = new Date(d.admission.getFullYear(), d.admission.getMonth(), d.admission.getDate()).getTime();
+        return admDay >= fromDay;
+      });
     }
     if (to) {
-      const endOfDay = new Date(to);
-      endOfDay.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(d => d.admission && d.admission <= endOfDay);
+      const toDay = new Date(to.getFullYear(), to.getMonth(), to.getDate()).getTime();
+      filtered = filtered.filter(d => {
+        if (!d.admission) return false;
+        const admDay = new Date(d.admission.getFullYear(), d.admission.getMonth(), d.admission.getDate()).getTime();
+        return admDay <= toDay;
+      });
     }
+    console.log(`[RCM] Recompute: period=${p}, from=${from?.toISOString()}, to=${to?.toISOString()}, filtered=${filtered.length}/${records.length}`);
     setGlobalData(computeGlobals(filtered));
   }, []);
 
