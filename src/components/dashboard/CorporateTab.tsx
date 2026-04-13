@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { MetricCard, MetricGrid } from './MetricCard';
@@ -9,24 +10,41 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend, LineChart, Line, CartesianGrid
 } from 'recharts';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 export function CorporateTab() {
-  const { globalData, getGroupKey } = useDashboard();
+  const { globalData } = useDashboard();
   const { chartType } = useChartPrefs();
+  const [selectedInsurer, setSelectedInsurer] = useState('all');
+
+  // Filter: corporate = policyHolder is non-blank
+  const allCorpData = useMemo(() => {
+    if (!globalData) return [];
+    return globalData.allData.filter(x => x.policyHolder.trim().length > 0);
+  }, [globalData]);
+
+  // Unique insurers for filter
+  const insurers = useMemo(() => {
+    const set = new Set<string>();
+    allCorpData.forEach(x => { if (x.insurer && x.insurer !== 'Unknown') set.add(x.insurer); });
+    return Array.from(set).sort();
+  }, [allCorpData]);
+
+  // Apply insurer filter
+  const corpData = useMemo(() => {
+    if (selectedInsurer === 'all') return allCorpData;
+    return allCorpData.filter(x => x.insurer === selectedInsurer);
+  }, [allCorpData, selectedInsurer]);
+
   if (!globalData) return null;
 
-  // Filter: keep only corporate/group policies, remove Unknown & Individual
-  const corpData = globalData.allData.filter(x => {
-    const pt = (x.policyType || '').toLowerCase().trim();
-    if (!pt || pt === 'unknown' || pt === 'individual' || pt === 'retail') return false;
-    return true;
-  });
-
-  if (corpData.length === 0) {
+  if (allCorpData.length === 0) {
     return (
       <div className="animate-fadeIn">
         <SectionHeading title="Corporate Module" tag="Group / Corporate Policies" />
-        <p className="text-muted-foreground text-sm mt-4">No corporate/group policy claims found in the data. Only Individual/Unknown policies exist.</p>
+        <p className="text-muted-foreground text-sm mt-4">No corporate policy claims found. Policy Holder Name column appears to be blank for all records.</p>
       </div>
     );
   }
@@ -35,7 +53,6 @@ export function CorporateTab() {
   const totalClaimed = sm(corpData.map(x => x.claimedAmt));
   const totalApproved = sm(corpData.map(x => x.approvedAmt));
   const totalSettled = sm(corpData.map(x => x.settledAmt));
-  const totalShortfall = sm(corpData.map(x => x.shortfall));
   const denied = corpData.filter(x => x.status.toLowerCase().includes('denied') || x.status === 'Cancelled');
   const tatVals = corpData.map(x => ddiff(x.admission, x.paymentDate)).filter((v): v is number => v !== null && v < 365);
 
@@ -43,32 +60,25 @@ export function CorporateTab() {
   const collRate = pct(totalSettled, totalApproved);
   const denialRate = pct(denied.length, n);
   const avgTAT = avg(tatVals);
-  const avgClaim = totalClaimed / n;
+  const avgClaim = n > 0 ? totalClaimed / n : 0;
   const corpShare = pct(n, globalData.allData.length);
 
-  // By TPA/Insurer
-  const payerMap: Record<string, { cnt: number; claimed: number; approved: number; settled: number; denied: number; tatVals: number[] }> = {};
+  // Group by Policy Holder Name (corporate name)
+  const corpMap: Record<string, { cnt: number; claimed: number; approved: number; settled: number; denied: number; tatVals: number[]; insurer: string }> = {};
   corpData.forEach(x => {
-    const k = getGroupKey(x);
-    if (!payerMap[k]) payerMap[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [] };
-    const p = payerMap[k];
+    const k = x.policyHolder;
+    if (!corpMap[k]) corpMap[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], insurer: x.insurer };
+    const p = corpMap[k];
     p.cnt++; p.claimed += x.claimedAmt; p.approved += x.approvedAmt; p.settled += x.settledAmt;
     if (x.status.toLowerCase().includes('denied') || x.status === 'Cancelled') p.denied++;
     const tat = ddiff(x.admission, x.paymentDate);
     if (tat !== null && tat < 365) p.tatVals.push(tat);
   });
 
-  const payerArr = Object.entries(payerMap)
-    .filter(([_, v]) => v.cnt >= 5)
-    .sort((a, b) => b[1].claimed - a[1].claimed);
+  const corpArr = Object.entries(corpMap).sort((a, b) => b[1].claimed - a[1].claimed);
 
-  // By policy type (corporate subtypes)
-  const ptMap: Record<string, number> = {};
-  corpData.forEach(x => {
-    const pt = x.policyType || 'Other';
-    ptMap[pt] = (ptMap[pt] || 0) + 1;
-  });
-  const ptData = Object.entries(ptMap).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+  // Top corporates chart
+  const topCorps = corpArr.slice(0, 10).map(([k, v]) => ({ name: k.length > 25 ? k.slice(0, 22) + '...' : k, value: v.cnt, claimed: v.claimed }));
 
   // Monthly trend
   const monthMap: Record<string, { cnt: number; claimed: number; settled: number }> = {};
@@ -88,12 +98,25 @@ export function CorporateTab() {
     };
   });
 
-  // Top payer volume chart
-  const topPayers = payerArr.slice(0, 10).map(([k, v]) => ({ name: shortP(k), value: v.cnt, claimed: v.claimed }));
-
   return (
     <div className="animate-fadeIn">
-      <SectionHeading title="Corporate Module" tag="Group / Corporate Policy Analytics" />
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+        <SectionHeading title="Corporate Module" tag="By Policy Holder Name" />
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Insurer:</span>
+          <Select value={selectedInsurer} onValueChange={setSelectedInsurer}>
+            <SelectTrigger className="w-[220px] h-8 text-xs">
+              <SelectValue placeholder="All Insurers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Insurers</SelectItem>
+              {insurers.map(ins => (
+                <SelectItem key={ins} value={ins}>{ins}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       <MetricGrid>
         <MetricCard label="Corporate Claims" value={n.toLocaleString()} subtitle={`${fN(corpShare)}% of all claims`} highlighted />
@@ -107,32 +130,20 @@ export function CorporateTab() {
       </MetricGrid>
 
       <ChartGrid>
-        <ChartCard title="Corporate Claims by Payer" subtitle="Top payers by volume" height="320px">
+        <ChartCard title="Top Corporates by Volume" subtitle="By Policy Holder Name" height="320px">
           <ResponsiveContainer>
-            <BarChart data={topPayers} layout="vertical">
+            <BarChart data={topCorps} layout="vertical">
               <XAxis type="number" tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} />
+              <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 9 }} />
               <Tooltip />
               <Bar dataKey="value" name="Claims" radius={[0, 4, 4, 0]}>
-                {topPayers.map((_, i) => <Cell key={i} fill={R_PAL[i % R_PAL.length]} />)}
+                {topCorps.map((_, i) => <Cell key={i} fill={R_PAL[i % R_PAL.length]} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Corporate Policy Type Split" subtitle="Distribution across corporate subtypes">
-          <ResponsiveContainer>
-            <PieChart>
-              <Pie data={ptData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80}>
-                {ptData.map((_, i) => <Cell key={i} fill={MIX_PAL[i % MIX_PAL.length]} />)}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="Corporate Monthly Trend" subtitle="Claims volume and revenue" height="300px" full>
+        <ChartCard title="Corporate Monthly Trend" subtitle="Claims volume and revenue" height="320px">
           <ResponsiveContainer>
             {chartType === 'line' ? (
               <LineChart data={monthlyData}>
@@ -159,18 +170,19 @@ export function CorporateTab() {
         </ChartCard>
       </ChartGrid>
 
-      {payerArr.length > 0 && (
+      {corpArr.length > 0 && (
         <DataTable
-          title="Corporate Payer Scorecard"
-          subtitle="Performance by TPA/Insurer for corporate claims"
-          headers={['Payer', 'Claims', 'Billed', 'Approval %', 'Collection %', 'Denial %', 'Avg TAT']}
-          rows={payerArr.slice(0, 15).map(([k, v]) => {
+          title="Top Corporate Scorecard"
+          subtitle="Performance by Policy Holder Name"
+          headers={['Corporate Name', 'Insurer', 'Claims', 'Billed', 'Approval %', 'Collection %', 'Denial %', 'Avg TAT']}
+          rows={corpArr.slice(0, 20).map(([k, v]) => {
             const aR = pct(v.approved, v.claimed);
             const cR = pct(v.settled, v.approved);
             const dR = pct(v.denied, v.cnt);
             const t = avg(v.tatVals);
             return [
-              shortP(k),
+              k,
+              v.insurer,
               v.cnt.toString(),
               fmt(v.claimed),
               <span style={{ color: aR > 75 ? '#15803D' : aR > 60 ? '#854D0E' : '#9B1C1C' }}>{fN(aR)}%</span>,
