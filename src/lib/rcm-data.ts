@@ -106,6 +106,13 @@ export function parseExcelFile(buffer: ArrayBuffer): ClaimRecord[] {
   }));
 }
 
+/** Parse just the raw sheet rows (no normalization) — used by DQ engine to inspect originals */
+export function parseRawSheet(buffer: ArrayBuffer): any[] {
+  const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws, { defval: null });
+}
+
 export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const n = data.length;
   const totalClaimed = sm(data.map(x => x.claimedAmt));

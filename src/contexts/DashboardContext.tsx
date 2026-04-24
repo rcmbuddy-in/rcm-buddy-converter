@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import { ClaimRecord, GlobalData, parseExcelFile, computeGlobals } from '@/lib/rcm-data';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { ClaimRecord, GlobalData, parseExcelFile, parseRawSheet, computeGlobals } from '@/lib/rcm-data';
+import { runDataQuality, DQReport } from '@/lib/dq-engine';
 
 type GroupBy = 'tpa' | 'insurer';
 
@@ -13,13 +14,18 @@ interface DashboardContextType {
   activeTab: string;
   setActiveTab: (t: string) => void;
   availableYears: string[];
-  handleFileUpload: (buffer: ArrayBuffer) => void;
+  handleFileUpload: (buffer: ArrayBuffer, fileName?: string) => void;
   resetData: () => void;
   getGroupKey: (x: ClaimRecord) => string;
   dateFrom: Date | undefined;
   dateTo: Date | undefined;
   setDateFrom: (d: Date | undefined) => void;
   setDateTo: (d: Date | undefined) => void;
+  dqReport: DQReport | null;
+  dqModalOpen: boolean;
+  openDQModal: () => void;
+  closeDQModal: () => void;
+  proceedAfterDQ: () => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -39,6 +45,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [dqReport, setDqReport] = useState<DQReport | null>(null);
+  const [dqModalOpen, setDqModalOpen] = useState(false);
 
   const recompute = useCallback((records: ClaimRecord[], p: string, from?: Date, to?: Date) => {
     let filtered = records;
@@ -66,21 +74,41 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setGlobalData(computeGlobals(filtered));
   }, []);
 
-  const handleFileUpload = useCallback((buffer: ArrayBuffer) => {
+  const handleFileUpload = useCallback((buffer: ArrayBuffer, fileName?: string) => {
+    const rawRows = parseRawSheet(buffer);
     const records = parseExcelFile(buffer);
-    setAllRecords(records);
+    const report = runDataQuality(rawRows, records, fileName);
 
+    setDqReport(report);
+    setDqModalOpen(true);
+    setPeriodState('all');
+    setDateFrom(undefined);
+    setDateTo(undefined);
+
+    if (report.fileRejected) {
+      // do not commit any data; user must fix and re-upload
+      setAllRecords([]);
+      setAvailableYears([]);
+      setGlobalData(null);
+    }
+    // else: wait for user to click Proceed in the modal
+  }, []);
+
+  const proceedAfterDQ = useCallback(() => {
+    if (!dqReport || dqReport.fileRejected) return;
+    const records = dqReport.cleanData;
+    setAllRecords(records);
     const years: Record<string, boolean> = {};
     records.forEach(d => {
       if (d.admission) years[d.admission.getFullYear().toString()] = true;
     });
     setAvailableYears(Object.keys(years).sort().reverse());
-
     setGlobalData(computeGlobals(records));
-    setPeriodState('all');
-    setDateFrom(undefined);
-    setDateTo(undefined);
-  }, []);
+    setDqModalOpen(false);
+  }, [dqReport]);
+
+  const openDQModal = useCallback(() => setDqModalOpen(true), []);
+  const closeDQModal = useCallback(() => setDqModalOpen(false), []);
 
   const handlePeriodChange = useCallback((p: string) => {
     setPeriodState(p);
@@ -108,6 +136,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setPeriodState('all');
     setDateFrom(undefined);
     setDateTo(undefined);
+    setDqReport(null);
+    setDqModalOpen(false);
   }, []);
 
   const getGroupKey = useCallback((x: ClaimRecord) => {
@@ -127,6 +157,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       dateFrom, dateTo,
       setDateFrom: handleDateFrom,
       setDateTo: handleDateTo,
+      dqReport,
+      dqModalOpen,
+      openDQModal,
+      closeDQModal,
+      proceedAfterDQ,
     }}>
       {children}
     </DashboardContext.Provider>
