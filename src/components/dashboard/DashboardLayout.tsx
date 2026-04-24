@@ -5,6 +5,7 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { ExportDialog } from './ExportDialog';
 import { BrandThemePicker } from './BrandThemePicker';
+import { DataQualityBadge } from './DataQualityBadge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -53,6 +54,7 @@ export function TopBar() {
           </span>
         </div>
         <div className="flex gap-2 items-center">
+          <DataQualityBadge />
           <BrandThemePicker />
           <button
             onClick={() => setShowExport(true)}
