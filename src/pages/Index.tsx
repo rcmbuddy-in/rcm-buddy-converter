@@ -16,11 +16,19 @@ import { CorporateTab } from '@/components/dashboard/CorporateTab';
 import { CashFlowTab } from '@/components/dashboard/CashFlowTab';
 import { PayerProfitabilityTab } from '@/components/dashboard/PayerProfitabilityTab';
 import { DSOTab } from '@/components/dashboard/DSOTab';
+import { DataQualityModal } from '@/components/dashboard/DataQualityModal';
 
 function DashboardContent() {
   const { globalData, activeTab } = useDashboard();
 
-  if (!globalData) return <UploadScreen />;
+  if (!globalData) {
+    return (
+      <>
+        <UploadScreen />
+        <DataQualityModal />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,6 +50,7 @@ function DashboardContent() {
         {activeTab === 'leakage' && <LeakageTab />}
         {activeTab === 'ai-report' && <AIReportTab />}
       </div>
+      <DataQualityModal />
     </div>
   );
 }

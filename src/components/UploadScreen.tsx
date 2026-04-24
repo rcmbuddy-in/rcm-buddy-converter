@@ -14,10 +14,10 @@ export function UploadScreen() {
     setLoadMsg(`Reading ${file.name}…`);
     const reader = new FileReader();
     reader.onload = (e) => {
-      setLoadMsg('Computing KPIs…');
+      setLoadMsg('Running data quality checks…');
       setTimeout(() => {
         try {
-          handleFileUpload(e.target!.result as ArrayBuffer);
+          handleFileUpload(e.target!.result as ArrayBuffer, file.name);
         } catch (err: any) {
           alert('Error reading file: ' + err.message);
         }
