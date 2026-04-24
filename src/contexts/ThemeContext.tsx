@@ -11,10 +11,14 @@ const STORAGE_KEY = 'rcm-brand-color';
 
 const ThemeContext = createContext<ThemeContextType | null>(null);
 
+const FALLBACK: ThemeContextType = {
+  brandColor: DEFAULT_BRAND,
+  setBrandColor: () => {},
+  resetBrand: () => {},
+};
+
 export function useTheme() {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
-  return ctx;
+  return useContext(ThemeContext) ?? FALLBACK;
 }
 
 /* ---------- color helpers ---------- */
