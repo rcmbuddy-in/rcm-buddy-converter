@@ -1,5 +1,6 @@
 import { ClaimRecord } from './rcm-data';
 import { ddiff } from './rcm-utils';
+import * as XLSX from 'xlsx';
 
 export type Severity = 'clean' | 'warning' | 'error' | 'critical';
 
@@ -409,8 +410,6 @@ export function runDataQuality(
 
 /* ---------- Excel export of error sheet ---------- */
 export async function exportDQErrorSheet(report: DQReport): Promise<void> {
-  const XLSX = await import('xlsx');
-
   const errorRows = report.quarantined.map(q => {
     const original = report.rawRows[q.rowIndex] ?? {};
     return {
