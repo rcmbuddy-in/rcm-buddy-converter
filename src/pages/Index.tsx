@@ -1,5 +1,6 @@
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
 import { ChartPrefsProvider } from '@/contexts/ChartPrefsContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { UploadScreen } from '@/components/UploadScreen';
 import { TopBar, NavTabs, FilterBar } from '@/components/dashboard/DashboardLayout';
 import { OverviewTab } from '@/components/dashboard/OverviewTab';
@@ -12,6 +13,9 @@ import { LeakageTab } from '@/components/dashboard/LeakageTab';
 import { AIReportTab } from '@/components/dashboard/AIReportTab';
 import { MoMTab } from '@/components/dashboard/MoMTab';
 import { CorporateTab } from '@/components/dashboard/CorporateTab';
+import { CashFlowTab } from '@/components/dashboard/CashFlowTab';
+import { PayerProfitabilityTab } from '@/components/dashboard/PayerProfitabilityTab';
+import { DSOTab } from '@/components/dashboard/DSOTab';
 
 function DashboardContent() {
   const { globalData, activeTab } = useDashboard();
@@ -32,6 +36,9 @@ function DashboardContent() {
         {activeTab === 'payer' && <PayerTab />}
         {activeTab === 'mom' && <MoMTab />}
         {activeTab === 'corporate' && <CorporateTab />}
+        {activeTab === 'cashflow' && <CashFlowTab />}
+        {activeTab === 'profitability' && <PayerProfitabilityTab />}
+        {activeTab === 'dso' && <DSOTab />}
         {activeTab === 'leakage' && <LeakageTab />}
         {activeTab === 'ai-report' && <AIReportTab />}
       </div>
@@ -40,11 +47,13 @@ function DashboardContent() {
 }
 
 const Index = () => (
-  <DashboardProvider>
-    <ChartPrefsProvider>
-      <DashboardContent />
-    </ChartPrefsProvider>
-  </DashboardProvider>
+  <ThemeProvider>
+    <DashboardProvider>
+      <ChartPrefsProvider>
+        <DashboardContent />
+      </ChartPrefsProvider>
+    </DashboardProvider>
+  </ThemeProvider>
 );
 
 export default Index;

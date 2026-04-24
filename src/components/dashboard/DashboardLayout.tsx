@@ -4,6 +4,7 @@ import { CalendarIcon } from 'lucide-react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { ExportDialog } from './ExportDialog';
+import { BrandThemePicker } from './BrandThemePicker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -12,6 +13,9 @@ import logo from '@/assets/rcm-buddy-logo.png';
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'financial', label: 'Financial KPIs' },
+  { id: 'cashflow', label: '💰 Cash Flow 90d' },
+  { id: 'dso', label: '⚡ DSO & Velocity' },
+  { id: 'profitability', label: '📊 Payer Profitability' },
   { id: 'tat', label: 'TAT Analysis' },
   { id: 'denial', label: 'Denial Analysis' },
   { id: 'ar', label: 'AR Management' },
@@ -49,6 +53,7 @@ export function TopBar() {
           </span>
         </div>
         <div className="flex gap-2 items-center">
+          <BrandThemePicker />
           <button
             onClick={() => setShowExport(true)}
             className="bg-primary-foreground/15 border border-primary-foreground/25 text-primary-foreground rounded-lg px-3.5 py-1.5 text-xs font-semibold hover:bg-primary-foreground/25 transition-colors"
