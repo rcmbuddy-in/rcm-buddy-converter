@@ -22,8 +22,7 @@ const COST_OF_CAPITAL = 0.10; // 10% per annum default
 export function PayerProfitabilityTab() {
   const { globalData, getGroupKey, groupBy } = useDashboard();
   const [coc, setCoc] = useState(COST_OF_CAPITAL);
-  if (!globalData) return null;
-  const { data: d } = globalData;
+  const d = globalData?.data ?? [];
 
   const groups = useMemo(() => {
     const m: Record<string, {
@@ -58,6 +57,8 @@ export function PayerProfitabilityTab() {
       })
       .sort((a, b) => b.claimed - a.claimed);
   }, [d, getGroupKey, coc]);
+
+  if (!globalData) return null;
 
   const totalClaimed = sm(groups.map(g => g.claimed));
   const totalSettled = sm(groups.map(g => g.settled));
