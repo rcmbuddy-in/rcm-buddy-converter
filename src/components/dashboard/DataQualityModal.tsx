@@ -29,6 +29,10 @@ export function DataQualityModal() {
   const { dqReport, dqModalOpen, closeDQModal, proceedAfterDQ, resetData } = useDashboard();
   const [tab, setTab] = useState<'overview' | 'issues' | 'quarantine'>('overview');
 
+  const topIssues = useMemo(() => Object.entries(dqReport?.flagsByRule ?? {})
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 12), [dqReport?.flagsByRule]);
+
   if (!dqModalOpen || !dqReport) return null;
 
   const r = dqReport;
@@ -41,10 +45,6 @@ export function DataQualityModal() {
     { name: 'Error', value: r.errorRows, color: SEVERITY_COLORS.error },
     { name: 'Critical', value: r.criticalRows, color: SEVERITY_COLORS.critical },
   ].filter(x => x.value > 0);
-
-  const topIssues = useMemo(() => Object.entries(r.flagsByRule)
-    .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 12), [r.flagsByRule]);
 
   const handleExport = () => exportDQErrorSheet(r);
 
