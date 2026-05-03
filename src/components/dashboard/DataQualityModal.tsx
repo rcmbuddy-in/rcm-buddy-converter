@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { exportDQErrorSheet, Severity } from '@/lib/dq-engine';
 import { fN, pct } from '@/lib/rcm-utils';
@@ -29,9 +29,9 @@ export function DataQualityModal() {
   const { dqReport, dqModalOpen, closeDQModal, proceedAfterDQ, resetData } = useDashboard();
   const [tab, setTab] = useState<'overview' | 'issues' | 'quarantine'>('overview');
 
-  const topIssues = useMemo(() => Object.entries(dqReport?.flagsByRule ?? {})
+  const topIssues = Object.entries(dqReport?.flagsByRule ?? {})
     .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 12), [dqReport?.flagsByRule]);
+    .slice(0, 12);
 
   if (!dqModalOpen || !dqReport) return null;
 
