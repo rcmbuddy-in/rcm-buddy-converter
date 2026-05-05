@@ -182,7 +182,11 @@ export function runDataQuality(
     const raw = rawRows[idx] || {};
     layerCounters[2].checks += 5;
 
-    const isApprovedOrSettled = rec.approvedAmt > 0 || rec.settledAmt > 0 || isClosedStatus(rec.status);
+    const ageDaysNow = rec.admission ? (ddiff(rec.admission, today) ?? 0) : 0;
+    const isSettledOrApproved = rec.approvedAmt > 0 || rec.settledAmt > 0 || isClosedStatus(rec.status);
+    // IP/Policy missing only counts as a defect when claim is NOT settled/approved
+    // AND approved=0 AND it is older than 30 days (per business rule).
+    const ipPolicyDefect = !isSettledOrApproved && rec.approvedAmt === 0 && ageDaysNow > 30;
 
     const claimNoVal = getRaw(raw, ['Claim No', 'Claim Number', 'ClaimNo', 'Claim ID']);
     if (!claimNoVal || String(claimNoVal).trim() === '') {
@@ -205,11 +209,11 @@ export function runDataQuality(
     // Soft warnings
     layerCounters[2].checks += 4;
     const ipNoVal = getRaw(raw, ['IP No', 'IP Number', 'IPNo', 'IPNumber']);
-    if (!ipNoVal && !isApprovedOrSettled) addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_ip_no', field: 'IP No', message: 'IP Number missing' });
+    if (!ipNoVal && ipPolicyDefect) addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_ip_no', field: 'IP No', message: 'IP Number missing on unapproved claim > 30 days old' });
     if (!rec.discharge) addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_discharge_date', field: 'Discharge Date', message: 'Discharge Date missing' });
     if (!rec.tpa || rec.tpa === 'Unknown') addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_tpa', field: 'TPA', message: 'TPA Name missing' });
     const policyNoVal = getRaw(raw, ['Policy No', 'Policy Number', 'PolicyNo']);
-    if (!policyNoVal && !isApprovedOrSettled) addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_policy_no', field: 'Policy No', message: 'Policy Number missing' });
+    if (!policyNoVal && ipPolicyDefect) addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_policy_no', field: 'Policy No', message: 'Policy Number missing on unapproved claim > 30 days old' });
   });
 
   /* ---------- LAYER 3: Business logic ---------- */
@@ -262,7 +266,9 @@ export function runDataQuality(
     // TAT escalations (only if claim is still in pipeline)
     layerCounters[3].checks += 3;
     const isSettled = rec.settledAmt > 0 || isClosedStatus(rec.status);
-    const isOpen = !isClosedStatus(rec.status) && !rec.status.toLowerCase().includes('denied') && rec.status.toLowerCase() !== 'cancelled';
+    const statusLo = rec.status.toLowerCase();
+    const isCancelled = statusLo === 'cancelled' || statusLo.includes('cancel');
+    const isOpen = !isClosedStatus(rec.status) && !statusLo.includes('denied') && !isCancelled;
     // Settled / approved claims are automatically valid — skip TAT and high-risk checks.
     if (isOpen && rec.admission && !isSettled && rec.approvedAmt === 0) {
       const ageDays = ddiff(rec.admission, today) ?? 0;
@@ -276,11 +282,17 @@ export function runDataQuality(
         addFlag(idx, { layer: 3, severity: 'critical', rule: 'tat_no_settlement_30d', message: `No settlement > 30 days — critical` });
       }
 
-      // Zero approval intelligence
+      // Zero approval > 30 days old → invalid / high risk
       layerCounters[3].checks++;
-      if (rec.approvedAmt === 0 && ageDays > 7) {
-        addFlag(idx, { layer: 3, severity: 'critical', rule: 'high_risk_zero_approval', message: `High Risk Claim — approved=0, age=${ageDays}d` });
+      if (rec.approvedAmt === 0 && ageDays > 30) {
+        addFlag(idx, { layer: 3, severity: 'critical', rule: 'high_risk_zero_approval', message: `Approved=0 and claim is ${ageDays}d old (>30d) — invalid claim` });
       }
+    }
+
+    // Cancelled cases are always invalid
+    if (isCancelled) {
+      layerCounters[3].checks++;
+      addFlag(idx, { layer: 3, severity: 'error', rule: 'cancelled_claim', message: 'Cancelled claim — invalid' });
     }
 
     // Process events
