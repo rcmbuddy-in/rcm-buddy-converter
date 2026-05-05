@@ -182,6 +182,8 @@ export function runDataQuality(
     const raw = rawRows[idx] || {};
     layerCounters[2].checks += 5;
 
+    const isApprovedOrSettled = rec.approvedAmt > 0 || rec.settledAmt > 0 || isClosedStatus(rec.status);
+
     const claimNoVal = getRaw(raw, ['Claim No', 'Claim Number', 'ClaimNo', 'Claim ID']);
     if (!claimNoVal || String(claimNoVal).trim() === '') {
       addFlag(idx, { layer: 2, severity: 'error', rule: 'missing_claim_no', field: 'Claim No', message: 'Claim Number is blank' });
@@ -203,11 +205,11 @@ export function runDataQuality(
     // Soft warnings
     layerCounters[2].checks += 4;
     const ipNoVal = getRaw(raw, ['IP No', 'IP Number', 'IPNo', 'IPNumber']);
-    if (!ipNoVal) addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_ip_no', field: 'IP No', message: 'IP Number missing' });
+    if (!ipNoVal && !isApprovedOrSettled) addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_ip_no', field: 'IP No', message: 'IP Number missing' });
     if (!rec.discharge) addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_discharge_date', field: 'Discharge Date', message: 'Discharge Date missing' });
     if (!rec.tpa || rec.tpa === 'Unknown') addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_tpa', field: 'TPA', message: 'TPA Name missing' });
     const policyNoVal = getRaw(raw, ['Policy No', 'Policy Number', 'PolicyNo']);
-    if (!policyNoVal) addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_policy_no', field: 'Policy No', message: 'Policy Number missing' });
+    if (!policyNoVal && !isApprovedOrSettled) addFlag(idx, { layer: 2, severity: 'warning', rule: 'missing_policy_no', field: 'Policy No', message: 'Policy Number missing' });
   });
 
   /* ---------- LAYER 3: Business logic ---------- */
@@ -251,7 +253,7 @@ export function runDataQuality(
       addFlag(idx, { layer: 3, severity: 'critical', rule: 'discharge_before_admission', message: 'Discharge date is before admission date' });
     }
     if (rec.discharge && rec.claimCreated && rec.claimCreated < rec.discharge) {
-      addFlag(idx, { layer: 3, severity: 'warning', rule: 'claim_before_discharge', message: 'Claim created before discharge' });
+      // Preauth submissions are intentionally created before discharge — not a defect. Skip.
     }
     if (rec.claimCreated && rec.paymentDate && rec.paymentDate < rec.claimCreated) {
       addFlag(idx, { layer: 3, severity: 'critical', rule: 'payment_before_claim', message: 'Payment date is before claim date' });
@@ -259,8 +261,10 @@ export function runDataQuality(
 
     // TAT escalations (only if claim is still in pipeline)
     layerCounters[3].checks += 3;
+    const isSettled = rec.settledAmt > 0 || isClosedStatus(rec.status);
     const isOpen = !isClosedStatus(rec.status) && !rec.status.toLowerCase().includes('denied') && rec.status.toLowerCase() !== 'cancelled';
-    if (isOpen && rec.admission) {
+    // Settled / approved claims are automatically valid — skip TAT and high-risk checks.
+    if (isOpen && rec.admission && !isSettled && rec.approvedAmt === 0) {
       const ageDays = ddiff(rec.admission, today) ?? 0;
       if (!rec.docSubmit && ageDays > 3) {
         addFlag(idx, { layer: 3, severity: 'warning', rule: 'tat_no_submission_3d', message: `No submission ${ageDays} days post-admission` });
