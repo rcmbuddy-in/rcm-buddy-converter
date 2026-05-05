@@ -129,8 +129,14 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const f = (d: Date) => d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
   const dateRange = dates.length ? `${f(dates[0])} – ${f(dates[dates.length - 1])}` : '';
 
-  // Age buckets for AR
-  const pending = data.filter(x => !['Settled', 'Claim Denied', 'Pre Auth Denied', 'Cancelled', 'Enhancement Denied', 'Discharge Denied'].includes(x.status));
+  // Status categorization per business policy
+  const DENIED_STATUSES = ['Pre Auth Denied', 'Discharge Denied', 'Claim Denied', 'Reconsideration Submitted', 'Enhancement Denied'];
+  const VALID_CLOSED_STATUSES = ['Settled', 'Settlement Initiated', 'Claim Approved', 'Processing', 'Enhancement Approved'];
+  const REMOVED_STATUSES = ['Cancelled'];
+  const isDenied = (s: string) => DENIED_STATUSES.includes(s);
+  const isValidClosed = (s: string) => VALID_CLOSED_STATUSES.includes(s);
+  // Age buckets for AR — pending = active claims (not settled/valid, not denied, not cancelled)
+  const pending = data.filter(x => !isValidClosed(x.status) && !isDenied(x.status) && !REMOVED_STATUSES.includes(x.status));
   const now = new Date();
   const buckets: Record<string, { cnt: number; val: number }> = {
     '0-30': { cnt: 0, val: 0 },
@@ -153,7 +159,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     if (!tpaMap[k]) tpaMap[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [] as number[] };
     const t = tpaMap[k];
     t.cnt++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt;
-    if (x.status.toLowerCase().includes('denied') || x.status === 'Cancelled') t.denied++;
+    if (isDenied(x.status)) t.denied++;
     const tat = ddiff(x.admission, x.paymentDate);
     if (tat !== null && tat < 365) t.tatVals.push(tat);
   });
@@ -172,7 +178,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const payerDed = Math.max(0, totalClaimed - totalApproved - totalShortfall);
   const shortfallVal = totalShortfall;
   const uncollected = Math.max(0, totalApproved - totalSettled - totalCopay - totalTDS);
-  const deniedVal = sm(data.filter(x => x.status.toLowerCase().includes('denied') || x.status === 'Cancelled').map(x => x.claimedAmt));
+  const deniedVal = sm(data.filter(x => isDenied(x.status)).map(x => x.claimedAmt));
   const leakageData = { payerDed, shortfall: shortfallVal, uncollected, deniedVal, copayDue: totalCopay };
 
   // TPA leakage
@@ -182,7 +188,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     if (!tpaLeak[k]) tpaLeak[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, shortfall: 0, denied: 0, denVal: 0 };
     const t = tpaLeak[k];
     t.cnt++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt; t.shortfall += x.shortfall;
-    if (x.status.toLowerCase().includes('denied') || x.status === 'Cancelled') { t.denied++; t.denVal += x.claimedAmt; }
+    if (isDenied(x.status)) { t.denied++; t.denVal += x.claimedAmt; }
   });
 
   return {
