@@ -95,6 +95,47 @@ function isClosedStatus(s: string): boolean {
   return CLOSED_STATUSES.some(c => lo.includes(c));
 }
 
+/* ---------- Status-based business policy ----------
+ * Per business rules:
+ *  - Cancelled                       → remove
+ *  - Pre Auth Query                  → remove if > 30 days old
+ *  - Pre Auth Initiated / Approved / Query Replied / Discharge Approved /
+ *    Pre Auth Submitted to Payer     → active only if < 15 days old; remove otherwise
+ *  - Pre Auth Denied / Discharge Denied / Claim Denied /
+ *    Reconsideration Submitted / Enhancement Denied → denied (valid, kept)
+ *  - Settled / Settlement Initiated / Claim Approved / Processing /
+ *    Enhancement Approved            → valid claim (kept)
+ */
+type StatusPolicy = 'remove' | 'valid' | 'denied' | 'active_15d' | 'remove_after_30d';
+const STATUS_POLICY: Record<string, StatusPolicy> = {
+  'cancelled': 'remove',
+  'pre auth query': 'remove_after_30d',
+  'settled': 'valid',
+  'pre auth denied': 'denied',
+  'pre auth initiated': 'active_15d',
+  'pre auth approved': 'active_15d',
+  'pre auth query replied': 'active_15d',
+  'settlement initiated': 'valid',
+  'claim approved': 'valid',
+  'discharge denied': 'denied',
+  'claim denied': 'denied',
+  'reconsideration submitted': 'denied',
+  'discharge approved': 'active_15d',
+  'pre auth submitted to payer': 'active_15d',
+  'processing': 'valid',
+  'enhancement denied': 'denied',
+  'enhancement approved': 'valid',
+};
+function getStatusPolicy(status: string): StatusPolicy | null {
+  const lo = (status || '').trim().toLowerCase();
+  if (STATUS_POLICY[lo]) return STATUS_POLICY[lo];
+  // Soft fallbacks for variants
+  if (lo === 'cancel' || lo.includes('cancel')) return 'remove';
+  if (lo.includes('denied')) return 'denied';
+  if (lo.includes('settled') || lo.includes('approved') || lo.includes('processing') || lo.includes('initiated')) return 'valid';
+  return null;
+}
+
 /* ---------- Engine ---------- */
 export function runDataQuality(
   rawRows: any[],
@@ -184,10 +225,14 @@ export function runDataQuality(
     layerCounters[2].checks += 5;
 
     const ageDaysNow = rec.admission ? (ddiff(rec.admission, today) ?? 0) : 0;
-    const isSettledOrApproved = rec.approvedAmt > 0 || rec.settledAmt > 0 || isClosedStatus(rec.status);
-    // IP/Policy missing only counts as a defect when claim is NOT settled/approved
-    // AND approved=0 AND it is older than 30 days (per business rule).
-    const ipPolicyDefect = !isSettledOrApproved && rec.approvedAmt === 0 && ageDaysNow > 30;
+    const policy = getStatusPolicy(rec.status);
+    // A claim is "valid" (kept and trusted) if it's settled/approved OR explicitly a valid/denied status.
+    const isValidClaim =
+      rec.approvedAmt > 0 || rec.settledAmt > 0 || isClosedStatus(rec.status) ||
+      policy === 'valid' || policy === 'denied';
+    // IP/Policy missing only counts as a defect when the claim is neither valid nor denied
+    // AND approved=0 AND it is older than 30 days.
+    const ipPolicyDefect = !isValidClaim && rec.approvedAmt === 0 && ageDaysNow > 30;
 
     const claimNoVal = getRaw(raw, ['Claim No', 'Claim Number', 'ClaimNo', 'Claim ID']);
     if (!claimNoVal || String(claimNoVal).trim() === '') {
@@ -263,37 +308,19 @@ export function runDataQuality(
       addFlag(idx, { layer: 3, severity: 'critical', rule: 'payment_before_claim', message: 'Payment date is before claim date' });
     }
 
-    // TAT escalations (only if claim is still in pipeline)
-    layerCounters[3].checks += 3;
-    const isSettled = rec.settledAmt > 0 || isClosedStatus(rec.status);
-    const statusLo = rec.status.toLowerCase();
-    const isCancelled = statusLo === 'cancelled' || statusLo.includes('cancel');
-    const isOpen = !isClosedStatus(rec.status) && !statusLo.includes('denied') && !isCancelled;
-    // Settled / approved claims are automatically valid — skip TAT and high-risk checks.
-    if (isOpen && rec.admission && !isSettled && rec.approvedAmt === 0) {
-      const ageDays = ddiff(rec.admission, today) ?? 0;
-      if (!rec.docSubmit && ageDays > 3) {
-        addFlag(idx, { layer: 3, severity: 'warning', rule: 'tat_no_submission_3d', message: `No submission ${ageDays} days post-admission` });
-      }
-      if (rec.docSubmit && rec.approvedAmt === 0 && (ddiff(rec.docSubmit, today) ?? 0) > 10) {
-        addFlag(idx, { layer: 3, severity: 'error', rule: 'tat_no_approval_10d', message: `No approval > 10 days after submission` });
-      }
-      if (rec.approvedAmt > 0 && rec.settledAmt === 0 && (ddiff(rec.docSubmit ?? rec.admission, today) ?? 0) > 30) {
-        addFlag(idx, { layer: 3, severity: 'critical', rule: 'tat_no_settlement_30d', message: `No settlement > 30 days — critical` });
-      }
+    // ----- Status-policy driven removals (replaces TAT / high-risk / cancelled checks) -----
+    layerCounters[3].checks += 1;
+    const policy3 = getStatusPolicy(rec.status);
+    const ageDays = rec.admission ? (ddiff(rec.admission, today) ?? 0) : 0;
 
-      // Zero approval > 30 days old → invalid / high risk
-      layerCounters[3].checks++;
-      if (rec.approvedAmt === 0 && ageDays > 30) {
-        addFlag(idx, { layer: 3, severity: 'critical', rule: 'high_risk_zero_approval', message: `Approved=0 and claim is ${ageDays}d old (>30d) — invalid claim` });
-      }
+    if (policy3 === 'remove') {
+      addFlag(idx, { layer: 3, severity: 'error', rule: 'cancelled_claim', message: 'Cancelled claim — remove' });
+    } else if (policy3 === 'remove_after_30d' && ageDays > 30) {
+      addFlag(idx, { layer: 3, severity: 'error', rule: 'preauth_query_stale', message: `Pre Auth Query > 30d old (${ageDays}d) — remove` });
+    } else if (policy3 === 'active_15d' && ageDays > 15) {
+      addFlag(idx, { layer: 3, severity: 'error', rule: 'active_status_stale', message: `"${rec.status}" > 15d old (${ageDays}d) — no longer active, remove` });
     }
-
-    // Cancelled cases are always invalid
-    if (isCancelled) {
-      layerCounters[3].checks++;
-      addFlag(idx, { layer: 3, severity: 'error', rule: 'cancelled_claim', message: 'Cancelled claim — invalid' });
-    }
+    // 'valid' and 'denied' policies → kept as-is (no flag).
 
     // Process events
     layerCounters[3].checks += 3;
