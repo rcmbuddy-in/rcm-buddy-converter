@@ -178,6 +178,7 @@ export function runDataQuality(
   }
 
   /* ---------- LAYER 2: Mandatory fields ---------- */
+  const today = new Date();
   parsed.forEach((rec, idx) => {
     const raw = rawRows[idx] || {};
     layerCounters[2].checks += 5;
@@ -217,7 +218,6 @@ export function runDataQuality(
   });
 
   /* ---------- LAYER 3: Business logic ---------- */
-  const today = new Date();
 
   // Pre-build duplicate detection maps
   const claimNoMap = new Map<string, number[]>();
