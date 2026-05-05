@@ -95,6 +95,47 @@ function isClosedStatus(s: string): boolean {
   return CLOSED_STATUSES.some(c => lo.includes(c));
 }
 
+/* ---------- Status-based business policy ----------
+ * Per business rules:
+ *  - Cancelled                       → remove
+ *  - Pre Auth Query                  → remove if > 30 days old
+ *  - Pre Auth Initiated / Approved / Query Replied / Discharge Approved /
+ *    Pre Auth Submitted to Payer     → active only if < 15 days old; remove otherwise
+ *  - Pre Auth Denied / Discharge Denied / Claim Denied /
+ *    Reconsideration Submitted / Enhancement Denied → denied (valid, kept)
+ *  - Settled / Settlement Initiated / Claim Approved / Processing /
+ *    Enhancement Approved            → valid claim (kept)
+ */
+type StatusPolicy = 'remove' | 'valid' | 'denied' | 'active_15d' | 'remove_after_30d';
+const STATUS_POLICY: Record<string, StatusPolicy> = {
+  'cancelled': 'remove',
+  'pre auth query': 'remove_after_30d',
+  'settled': 'valid',
+  'pre auth denied': 'denied',
+  'pre auth initiated': 'active_15d',
+  'pre auth approved': 'active_15d',
+  'pre auth query replied': 'active_15d',
+  'settlement initiated': 'valid',
+  'claim approved': 'valid',
+  'discharge denied': 'denied',
+  'claim denied': 'denied',
+  'reconsideration submitted': 'denied',
+  'discharge approved': 'active_15d',
+  'pre auth submitted to payer': 'active_15d',
+  'processing': 'valid',
+  'enhancement denied': 'denied',
+  'enhancement approved': 'valid',
+};
+function getStatusPolicy(status: string): StatusPolicy | null {
+  const lo = (status || '').trim().toLowerCase();
+  if (STATUS_POLICY[lo]) return STATUS_POLICY[lo];
+  // Soft fallbacks for variants
+  if (lo === 'cancel' || lo.includes('cancel')) return 'remove';
+  if (lo.includes('denied')) return 'denied';
+  if (lo.includes('settled') || lo.includes('approved') || lo.includes('processing') || lo.includes('initiated')) return 'valid';
+  return null;
+}
+
 /* ---------- Engine ---------- */
 export function runDataQuality(
   rawRows: any[],
