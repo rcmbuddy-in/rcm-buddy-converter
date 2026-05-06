@@ -3,6 +3,9 @@ import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { SectionHeading } from './SectionHeading';
+import { HealthScoreCard, LeakageBanner } from './HealthScoreCard';
+import { InsightList } from './InsightCard';
+import { computeHealthScore, getUrgentIssues, getTodaysActions, getLeakageSummary } from '@/lib/insights-engine';
 import { fmt, fN, pct, avg, ddiff, sm, shortP, R_PAL, getBadgeType } from '@/lib/rcm-utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -14,6 +17,11 @@ export function OverviewTab() {
   const { chartType } = useChartPrefs();
   if (!globalData) return null;
   const { data: d, n, totalClaimed, totalApproved, totalSettled } = globalData;
+
+  const health = computeHealthScore(globalData);
+  const urgent = getUrgentIssues(globalData, 5);
+  const todaysActions = getTodaysActions(globalData);
+  const leakage = getLeakageSummary(globalData);
 
   const settled = d.filter(x => x.status === 'Settled');
   const denied = d.filter(x => x.status.toLowerCase().includes('denied') || x.status === 'Cancelled');
@@ -62,6 +70,26 @@ export function OverviewTab() {
 
   return (
     <div className="animate-fadeIn">
+      {/* Executive command-center row: Health + Leakage */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 mb-6">
+        <HealthScoreCard health={health} />
+        <LeakageBanner total={leakage.total} breakdown={leakage.breakdown} />
+      </div>
+
+      <InsightList
+        title="Top 5 Urgent Issues"
+        subtitle="Ranked by financial impact and recovery urgency"
+        insights={urgent}
+        empty="No critical issues detected. RCM operations look healthy."
+      />
+
+      <InsightList
+        title="Today's Action Queue"
+        subtitle="Concrete follow-ups for your team to action now"
+        insights={todaysActions}
+        empty="No pending actions for today."
+      />
+
       <SectionHeading title="Hospital at a Glance" tag="Overview · KPIs ranked by impact" />
       <MetricGrid>
         <MetricCard label="Total Claims" value={n.toLocaleString()} subtitle="All admissions in period" highlighted weight="Highest Weight" />
