@@ -3,6 +3,8 @@ import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { DataTable } from './DataTable';
 import { SectionHeading } from './SectionHeading';
+import { InsightList } from './InsightCard';
+import { getDenialBreakdown } from '@/lib/insights-engine';
 import { fmt, fN, pct, sm, shortP, R_PAL, MIX_PAL, getBadgeType } from '@/lib/rcm-utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
@@ -21,6 +23,9 @@ export function DenialTab() {
   const paDenRate = pct(paDenied.length, paTotal.length);
   const overallDR = pct(allDenied.length, n);
   const deniedVal = sm(allDenied.map(x => x.claimedAmt));
+
+  const breakdown = getDenialBreakdown(globalData);
+  const preventableShare = pct(breakdown.preventable.count, allDenied.length || 1);
 
   // Pre-auth bar
   const preAuthData = [
@@ -48,14 +53,42 @@ export function DenialTab() {
   return (
     <div className="animate-fadeIn">
       <SectionHeading title="Denial & Rejection Analysis" tag="Loss Recovery Opportunities" />
+
+      <InsightList title="Denial Intelligence" subtitle="Preventable patterns and recovery opportunities" insights={breakdown.insights} />
+
       <MetricGrid>
         <MetricCard label="Pre-Auth Approved" value={paApproved.length.toString()} subtitle={paTotal.length + ' pre-auths total'} />
         <MetricCard label="Pre-Auth Denied" value={paDenied.length.toString()} subtitle={fN(paDenRate) + '% of total pre-auths'} badge={{ type: getBadgeType(paDenRate, 15, 30, false), text: paDenRate < 15 ? 'Low' : 'High' }} />
         <MetricCard label="Overall Denial Rate" value={fN(overallDR) + '%'} subtitle={allDenied.length + ' of ' + n + ' claims'} badge={{ type: getBadgeType(overallDR, 10, 20, false), text: overallDR < 10 ? 'Controlled' : 'High' }} />
         <MetricCard label="Denied Claim Value" value={fmt(deniedVal)} subtitle="Revenue at risk from denials" />
-        <MetricCard label="Claim Denial Rate" value={fN(pct(claimDenied.length, n)) + '%'} subtitle={claimDenied.length + ' claims outright denied'} />
-        <MetricCard label="Cancellation Rate" value={fN(pct(cancelled.length, n)) + '%'} subtitle={cancelled.length + ' claims cancelled'} />
+        <MetricCard label="Preventable Denials" value={breakdown.preventable.count.toString()} subtitle={fN(preventableShare) + '% of denials avoidable'} badge={{ type: preventableShare > 50 ? 'critical' : preventableShare > 25 ? 'warning' : 'good', text: fmt(breakdown.preventable.value) }} />
+        <MetricCard label="Recovery Probability" value={breakdown.recoveryProbability + '%'} subtitle="Denials still within appeal window" badge={{ type: breakdown.recoveryProbability >= 30 ? 'good' : 'warning', text: breakdown.recoveryProbability >= 30 ? 'Recoverable' : 'Limited' }} />
       </MetricGrid>
+
+      {/* Preventable vs Non-Preventable split */}
+      <ChartGrid>
+        <ChartCard title="Preventable vs Non-Preventable Denials" subtitle="Identify avoidable revenue loss" height="260px">
+          <ResponsiveContainer><BarChart data={[
+            { name: 'Preventable', count: breakdown.preventable.count, value: breakdown.preventable.value },
+            { name: 'Non-Preventable', count: breakdown.nonPreventable.count, value: breakdown.nonPreventable.value },
+          ]}>
+            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip formatter={(v: number, name) => name === 'value' ? fmt(v) : v.toString()} />
+            <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+              <Cell fill="#DC2626" /><Cell fill="#6B7280" />
+            </Bar>
+          </BarChart></ResponsiveContainer>
+        </ChartCard>
+        <ChartCard title="Top Preventable Reasons" subtitle="Where to focus prevention effort" height="260px">
+          <ResponsiveContainer><BarChart data={breakdown.preventable.reasons.slice(0, 6)} layout="vertical">
+            <XAxis type="number" tick={{ fontSize: 11 }} />
+            <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 10 }} />
+            <Tooltip />
+            <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#D97706" />
+          </BarChart></ResponsiveContainer>
+        </ChartCard>
+      </ChartGrid>
 
       <ChartGrid>
         <ChartCard title="Pre-Auth: Approved vs Denied" subtitle="Counts of approved and denied pre-authorisations">
