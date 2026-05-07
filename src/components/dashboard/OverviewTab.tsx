@@ -1,26 +1,21 @@
 import { useDashboard } from '@/contexts/DashboardContext';
-import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { SectionHeading } from './SectionHeading';
 import { HealthScoreCard, LeakageBanner } from './HealthScoreCard';
-import { InsightList } from './InsightCard';
-import { computeHealthScore, getUrgentIssues, getTodaysActions, getLeakageSummary } from '@/lib/insights-engine';
-import { fmt, fN, pct, avg, ddiff, sm, shortP, R_PAL, getBadgeType } from '@/lib/rcm-utils';
+import { computeHealthScore, getLeakageSummary } from '@/lib/insights-engine';
+import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType } from '@/lib/rcm-utils';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart,
+  PieChart, Pie, Cell, Legend, Line
 } from 'recharts';
 
 export function OverviewTab() {
   const { globalData, getGroupKey } = useDashboard();
-  const { chartType } = useChartPrefs();
   if (!globalData) return null;
   const { data: d, n, totalClaimed, totalApproved, totalSettled } = globalData;
 
   const health = computeHealthScore(globalData);
-  const urgent = getUrgentIssues(globalData, 5);
-  const todaysActions = getTodaysActions(globalData);
   const leakage = getLeakageSummary(globalData);
 
   const settled = d.filter(x => x.status === 'Settled');
@@ -43,18 +38,26 @@ export function OverviewTab() {
     statusMap[cat] = (statusMap[cat] || 0) + 1;
   });
   const statusData = Object.entries(statusMap).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
-  const statusColors = ['#059669', '#DC2626', '#D97706', '#1D4ED8', '#7C3AED', '#6B7280'];
+  const statusColors = MIX_PAL;
 
-  // Monthly
-  const mc: Record<string, number> = {};
+  // Monthly — count + claimed amount + avg per claim
+  const mc: Record<string, { count: number; amount: number }> = {};
   d.forEach(x => {
     if (!x.admission) return;
     const k = x.admission.getFullYear() + '-' + String(x.admission.getMonth() + 1).padStart(2, '0');
-    mc[k] = (mc[k] || 0) + 1;
+    if (!mc[k]) mc[k] = { count: 0, amount: 0 };
+    mc[k].count++;
+    mc[k].amount += x.claimedAmt;
   });
   const monthlyData = Object.keys(mc).sort().slice(-18).map(k => {
     const p = k.split('-');
-    return { name: new Date(+p[0], +p[1] - 1).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }), value: mc[k] };
+    const m = mc[k];
+    return {
+      name: new Date(+p[0], +p[1] - 1).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
+      claims: m.count,
+      amountLakhs: +(m.amount / 100000).toFixed(2),
+      avgPerClaim: m.count ? +(m.amount / m.count / 100000).toFixed(2) : 0,
+    };
   });
 
   // TPA volume
@@ -66,7 +69,7 @@ export function OverviewTab() {
   const pc: Record<string, number> = {};
   d.forEach(x => { const p = x.policyType || 'Unknown'; pc[p] = (pc[p] || 0) + 1; });
   const policyData = Object.entries(pc).map(([name, value]) => ({ name, value }));
-  const policyColors = ['#DC2626', '#1D4ED8', '#059669'];
+  const policyColors = ['#1D4ED8', '#059669', '#D97706'];
 
   return (
     <div className="animate-fadeIn">
@@ -76,25 +79,13 @@ export function OverviewTab() {
         <LeakageBanner total={leakage.total} breakdown={leakage.breakdown} />
       </div>
 
-      <InsightList
-        title="Top 5 Urgent Issues"
-        subtitle="Ranked by financial impact and recovery urgency"
-        insights={urgent}
-        empty="No critical issues detected. RCM operations look healthy."
-      />
-
-      <InsightList
-        title="Today's Action Queue"
-        subtitle="Concrete follow-ups for your team to action now"
-        insights={todaysActions}
-        empty="No pending actions for today."
-      />
-
       <SectionHeading title="Hospital at a Glance" tag="Overview · KPIs ranked by impact" />
       <MetricGrid>
         <MetricCard label="Total Claims" value={n.toLocaleString()} subtitle="All admissions in period" highlighted weight="Highest Weight" />
         <MetricCard label="Total Billed" value={fmt(totalClaimed)} subtitle="Gross claimed from payers" weight="Highest Weight" />
+        <MetricCard label="Total Approved" value={fmt(totalApproved)} subtitle="Approved by payers" weight="High Weight" />
         <MetricCard label="Total Collected" value={fmt(totalSettled)} subtitle="Net settled by payers" />
+        <MetricCard label="Patient Paid" value={fmt(globalData.totalPatientPaid + globalData.totalCopay)} subtitle={`Incl. copay ${fmt(globalData.totalCopay)}`} />
         <MetricCard label="Claim Approval Rate" value={fN(approvalRate) + '%'} subtitle="Approved ÷ Billed" badge={{ type: getBadgeType(approvalRate, 75, 60), text: approvalRate > 75 ? 'Healthy' : approvalRate > 60 ? 'Watch' : 'Critical' }} weight="High Weight" />
         <MetricCard label="Net Collection Rate" value={fN(netCollRate) + '%'} subtitle="Settled ÷ Approved" badge={{ type: getBadgeType(netCollRate, 85, 70), text: netCollRate > 85 ? 'Strong' : netCollRate > 70 ? 'Average' : 'Weak' }} weight="High Weight" />
         <MetricCard label="End-to-End TAT" value={fN(avgTAT) + ' days'} subtitle="Avg admission to payment" badge={{ type: getBadgeType(avgTAT, 30, 60, false), text: avgTAT < 30 ? 'Fast' : avgTAT < 60 ? 'Average' : 'Slow' }} weight="Medium Weight" />
@@ -108,18 +99,23 @@ export function OverviewTab() {
             {statusData.map((_, i) => <Cell key={i} fill={statusColors[i % statusColors.length]} />)}
           </Pie><Tooltip formatter={(v: number) => v.toLocaleString()} /><Legend /></PieChart></ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Monthly Claims Volume" subtitle="Admissions by month">
+        <ChartCard title="Monthly Claims — Volume, Amount & Avg/Claim" subtitle="Bars: claims & amount (₹L) · Line: avg per claim (₹L)">
           <ResponsiveContainer>
-            {chartType === 'line' ? (
-              <LineChart data={monthlyData}><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Line type="monotone" dataKey="value" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} /></LineChart>
-            ) : (
-              <BarChart data={monthlyData}><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" fill="#EF4444" radius={[4, 4, 0, 0]} /></BarChart>
-            )}
+            <ComposedChart data={monthlyData}>
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(v: any, name: string) => name === 'claims' ? [v, 'Claims'] : [`₹${v}L`, name === 'amountLakhs' ? 'Amount' : 'Avg/Claim']} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar yAxisId="left" dataKey="claims" name="Claims" fill="#1D4ED8" radius={[4, 4, 0, 0]} />
+              <Bar yAxisId="right" dataKey="amountLakhs" name="Amount (₹L)" fill="#059669" radius={[4, 4, 0, 0]} />
+              <Line yAxisId="right" type="monotone" dataKey="avgPerClaim" name="Avg/Claim (₹L)" stroke="#D97706" strokeWidth={2} dot={{ r: 3 }} />
+            </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
         <ChartCard title="Top TPAs by Volume" subtitle="Claims count" height="300px">
           <ResponsiveContainer><BarChart data={volData} layout="vertical"><XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="value" radius={[0, 4, 4, 0]}>
-            {volData.map((_, i) => <Cell key={i} fill={R_PAL[i % R_PAL.length]} />)}
+            {volData.map((_, i) => <Cell key={i} fill={MIX_PAL[i % MIX_PAL.length]} />)}
           </Bar></BarChart></ResponsiveContainer>
         </ChartCard>
         <ChartCard title="Policy Type Split" subtitle="Base vs Top-up">

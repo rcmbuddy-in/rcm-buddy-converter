@@ -26,6 +26,7 @@ interface DashboardContextType {
   openDQModal: () => void;
   closeDQModal: () => void;
   proceedAfterDQ: () => void;
+  bypassDQ: () => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -107,6 +108,23 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setDqModalOpen(false);
   }, [dqReport]);
 
+  // Bypass quality check entirely — load every parsed record (clean + warning + quarantined)
+  const bypassDQ = useCallback(() => {
+    if (!dqReport) return;
+    const all = [
+      ...dqReport.cleanData,
+      ...dqReport.quarantined.map(q => q.record),
+    ];
+    setAllRecords(all);
+    const years: Record<string, boolean> = {};
+    all.forEach(d => {
+      if (d.admission) years[d.admission.getFullYear().toString()] = true;
+    });
+    setAvailableYears(Object.keys(years).sort().reverse());
+    setGlobalData(computeGlobals(all));
+    setDqModalOpen(false);
+  }, [dqReport]);
+
   const openDQModal = useCallback(() => setDqModalOpen(true), []);
   const closeDQModal = useCallback(() => setDqModalOpen(false), []);
 
@@ -162,6 +180,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       openDQModal,
       closeDQModal,
       proceedAfterDQ,
+      bypassDQ,
     }}>
       {children}
     </DashboardContext.Provider>
