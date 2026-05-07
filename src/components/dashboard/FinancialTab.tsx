@@ -13,17 +13,12 @@ export function FinancialTab() {
   if (!globalData) return null;
   const { data: d, n, totalClaimed, totalApproved, totalSettled, totalShortfall, totalCopay, totalDiscount, totalTDS } = globalData;
 
-  const apR = pct(totalApproved, totalClaimed);
   const dedP = pct(totalClaimed - totalApproved, totalClaimed);
-  const ncR = pct(totalSettled, totalApproved);
-  const sfP = pct(totalShortfall, totalClaimed);
   const discP = pct(totalDiscount, totalClaimed);
   const tdsP = pct(totalTDS, totalSettled);
   const copP = pct(totalCopay, totalClaimed);
   const avgClaim = totalClaimed / n;
 
-  // EBITDA-impact proxy: net realised after deductions, copay, TDS
-  const ebitdaProxy = totalSettled - totalTDS;
   const grossLeak = totalClaimed - totalApproved;
   const netLeak = totalClaimed - totalSettled;
   const insights = getFinancialInsights(globalData);
@@ -58,16 +53,19 @@ export function FinancialTab() {
   ];
   const dedColors = ['#059669', '#DC2626', '#F97316', '#D97706', '#7C3AED', '#6B7280'];
 
-  // Quarterly table
-  const quarters: Record<string, { cnt: number; claimed: number; approved: number; settled: number }> = {};
+  // Monthly table (financial summary by month)
+  const months: Record<string, { cnt: number; claimed: number; approved: number; settled: number }> = {};
   d.forEach(x => {
     if (!x.admission) return;
-    const y = x.admission.getFullYear(), q = Math.ceil((x.admission.getMonth() + 1) / 3);
-    const k = `Q${q} ${y}`;
-    if (!quarters[k]) quarters[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0 };
-    quarters[k].cnt++; quarters[k].claimed += x.claimedAmt; quarters[k].approved += x.approvedAmt; quarters[k].settled += x.settledAmt;
+    const k = x.admission.getFullYear() + '-' + String(x.admission.getMonth() + 1).padStart(2, '0');
+    if (!months[k]) months[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0 };
+    months[k].cnt++; months[k].claimed += x.claimedAmt; months[k].approved += x.approvedAmt; months[k].settled += x.settledAmt;
   });
-  const qKeys = Object.keys(quarters).sort().slice(-8);
+  const mKeys = Object.keys(months).sort().slice(-18);
+  const mLabel = (k: string) => {
+    const [y, m] = k.split('-');
+    return new Date(+y, +m - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+  };
 
   // Insurer profitability ranking
   const insurerMap: Record<string, { claimed: number; approved: number; settled: number; cnt: number }> = {};
@@ -85,27 +83,25 @@ export function FinancialTab() {
     .sort((a, b) => b.settled - a.settled)
     .slice(0, 10);
 
-  // Deduction trend by quarter
-  const dedTrend = qKeys.map(k => {
-    const q = quarters[k];
-    return { name: k, deductionPct: pct(q.claimed - q.settled, q.claimed) };
+  // Deduction trend by month
+  const dedTrend = mKeys.map(k => {
+    const q = months[k];
+    return { name: mLabel(k), deductionPct: pct(q.claimed - q.settled, q.claimed) };
   });
 
   return (
     <div className="animate-fadeIn">
-      <SectionHeading title="Financial Performance KPIs" tag="Revenue & Collections" />
+      <SectionHeading title="Financial Deep-Dive" tag="Leakage drivers · Deductions · Insurer profitability" />
 
       <InsightList title="Financial Insights" subtitle="Auto-detected leakage drivers and recommendations" insights={insights} />
 
       <MetricGrid>
-        <MetricCard label="Gross Billed" value={fmt(totalClaimed)} subtitle="Top of revenue funnel" highlighted />
-        <MetricCard label="Net Collected" value={fmt(totalSettled)} subtitle={fN(pct(totalSettled, totalClaimed)) + '% of gross'} />
-        <MetricCard label="EBITDA Impact (proxy)" value={fmt(ebitdaProxy)} subtitle="Net settled minus TDS" badge={{ type: getBadgeType(pct(ebitdaProxy, totalClaimed), 70, 55), text: fN(pct(ebitdaProxy, totalClaimed)) + '% yield' }} />
-        <MetricCard label="Gross→Net Leakage" value={fmt(netLeak)} subtitle={fN(pct(netLeak, totalClaimed)) + '% of billed lost'} badge={{ type: 'warning', text: 'Track' }} />
-        <MetricCard label="Approval Rate" value={fN(apR) + '%'} subtitle="Approved ÷ Billed" badge={{ type: getBadgeType(apR, 75, 60), text: fN(apR) + '%' }} />
+        <MetricCard label="Gross→Net Leakage" value={fmt(netLeak)} subtitle={fN(pct(netLeak, totalClaimed)) + '% of billed lost'} highlighted />
+        <MetricCard label="Avg Claim Value" value={fmt(avgClaim)} subtitle="Per admission" />
+        <MetricCard label="Discount %" value={fN(discP) + '%'} subtitle={fmt(totalDiscount) + ' total discount'} />
+        <MetricCard label="Copay %" value={fN(copP) + '%'} subtitle={fmt(totalCopay) + ' total copay'} />
+        <MetricCard label="TDS on Settled" value={fN(tdsP) + '%'} subtitle={fmt(totalTDS) + ' deducted as TDS'} />
         <MetricCard label="Payer Deduction %" value={fN(dedP) + '%'} subtitle={fmt(grossLeak) + ' deducted by payers'} />
-        <MetricCard label="Net Collection Rate" value={fN(ncR) + '%'} subtitle="Settled ÷ Approved" badge={{ type: getBadgeType(ncR, 85, 70), text: ncR > 85 ? 'Strong' : 'Needs Attention' }} />
-        <MetricCard label="Shortfall Rate" value={fN(sfP) + '%'} subtitle={fmt(totalShortfall) + ' total shortfall'} />
       </MetricGrid>
 
       <ChartGrid>
@@ -150,11 +146,11 @@ export function FinancialTab() {
         ])}
       />
 
-      <DataTable title="Financial Summary by Quarter" subtitle="Claimed · Approved · Settled"
-        headers={['Quarter', 'Claims', 'Billed', 'Approved', 'Approved %', 'Settled', 'Collection %']}
-        rows={qKeys.map(k => {
-          const q = quarters[k];
-          return [<strong>{k}</strong>, q.cnt.toString(), fmt(q.claimed), fmt(q.approved), fN(pct(q.approved, q.claimed)) + '%', fmt(q.settled), fN(pct(q.settled, q.approved)) + '%'];
+      <DataTable title="Financial Summary by Month" subtitle="Claimed · Approved · Settled (last 18 months)"
+        headers={['Month', 'Claims', 'Billed', 'Approved', 'Approved %', 'Settled', 'Collection %']}
+        rows={mKeys.slice().reverse().map(k => {
+          const q = months[k];
+          return [<strong>{mLabel(k)}</strong>, q.cnt.toString(), fmt(q.claimed), fmt(q.approved), fN(pct(q.approved, q.claimed)) + '%', fmt(q.settled), fN(pct(q.settled, q.approved)) + '%'];
         })}
       />
     </div>
