@@ -1,19 +1,23 @@
+import { useState } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { SectionHeading } from './SectionHeading';
 import { HealthScoreCard, LeakageBanner } from './HealthScoreCard';
 import { computeHealthScore, getLeakageSummary } from '@/lib/insights-engine';
-import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType } from '@/lib/rcm-utils';
+import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType, categorizeStatus, STATUS_CATEGORY_COLORS } from '@/lib/rcm-utils';
+import { MonthDrillDownModal } from './MonthDrillDownModal';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart,
-  PieChart, Pie, Cell, Legend, Line
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend
 } from 'recharts';
 
 export function OverviewTab() {
   const { globalData, getGroupKey } = useDashboard();
+  const [monthMode, setMonthMode] = useState<'volume' | 'amount'>('volume');
+  const [drill, setDrill] = useState<{ key: string; label: string } | null>(null);
   if (!globalData) return null;
-  const { data: d, n, totalClaimed, totalApproved, totalSettled } = globalData;
+  const { data: d, n, totalClaimed, totalApproved, totalSettled, totalShortfall, totalCopay, totalDiscount, totalTDS } = globalData;
 
   const health = computeHealthScore(globalData);
   const leakage = getLeakageSummary(globalData);
@@ -26,39 +30,57 @@ export function OverviewTab() {
   const tatVals = d.map(x => ddiff(x.admission, x.paymentDate)).filter((v): v is number => v !== null && v < 365);
   const avgTAT = avg(tatVals);
   const denialRate = pct(denied.length, n);
+  const sfP = pct(totalShortfall, totalClaimed);
+  const dedP = pct(totalClaimed - totalApproved, totalClaimed);
+  const ebitdaProxy = totalSettled - totalTDS;
 
-  // Status distribution
+  // Status distribution — use consistent category colors
   const statusMap: Record<string, number> = {};
-  d.forEach(x => {
-    const cat = x.status.toLowerCase().includes('settled') ? 'Settled' :
-      x.status.toLowerCase().includes('denied') || x.status === 'Cancelled' ? 'Denied/Cancelled' :
-      x.status.toLowerCase().includes('pre auth') ? 'Pre-Auth Stage' :
-      x.status.toLowerCase().includes('processing') || x.status.includes('Progress') ? 'Processing' :
-      x.status.toLowerCase().includes('approved') ? 'Approved' : 'Other';
-    statusMap[cat] = (statusMap[cat] || 0) + 1;
-  });
+  d.forEach(x => { const cat = categorizeStatus(x.status); statusMap[cat] = (statusMap[cat] || 0) + 1; });
   const statusData = Object.entries(statusMap).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
-  const statusColors = MIX_PAL;
 
-  // Monthly — count + claimed amount + avg per claim
-  const mc: Record<string, { count: number; amount: number }> = {};
+  // Monthly — count + claimed amount (avg per claim available in tooltip only)
+  const mc: Record<string, { count: number; amount: number; key: string }> = {};
   d.forEach(x => {
     if (!x.admission) return;
     const k = x.admission.getFullYear() + '-' + String(x.admission.getMonth() + 1).padStart(2, '0');
-    if (!mc[k]) mc[k] = { count: 0, amount: 0 };
+    if (!mc[k]) mc[k] = { count: 0, amount: 0, key: k };
     mc[k].count++;
     mc[k].amount += x.claimedAmt;
   });
-  const monthlyData = Object.keys(mc).sort().slice(-18).map(k => {
+  const monthlyKeys = Object.keys(mc).sort().slice(-18);
+  const monthlyData = monthlyKeys.map(k => {
     const p = k.split('-');
     const m = mc[k];
+    const label = new Date(+p[0], +p[1] - 1).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
     return {
-      name: new Date(+p[0], +p[1] - 1).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
+      key: k,
+      name: label,
       claims: m.count,
       amountLakhs: +(m.amount / 100000).toFixed(2),
       avgPerClaim: m.count ? +(m.amount / m.count / 100000).toFixed(2) : 0,
     };
   });
+
+  const monthClaims = drill ? d.filter(x => {
+    if (!x.admission) return false;
+    const k = x.admission.getFullYear() + '-' + String(x.admission.getMonth() + 1).padStart(2, '0');
+    return k === drill.key;
+  }) : [];
+
+  const MonthlyTooltip = ({ active, payload }: any) => {
+    if (!active || !payload || !payload.length) return null;
+    const row = payload[0].payload;
+    return (
+      <div className="bg-popover border border-border rounded-md shadow-lg px-3 py-2 text-xs">
+        <div className="font-semibold mb-1">{row.name}</div>
+        <div>Volume: <strong>{row.claims.toLocaleString()}</strong> claims</div>
+        <div>Amount: <strong>₹{row.amountLakhs.toLocaleString('en-IN', { minimumFractionDigits: 2 })} L</strong></div>
+        <div>Avg / claim: <strong>₹{row.avgPerClaim.toLocaleString('en-IN', { minimumFractionDigits: 2 })} L</strong></div>
+        <div className="text-[10px] text-muted-foreground mt-1">Click bar for drill-down</div>
+      </div>
+    );
+  };
 
   // TPA volume
   const vc: Record<string, number> = {};
@@ -79,15 +101,18 @@ export function OverviewTab() {
         <LeakageBanner total={leakage.total} breakdown={leakage.breakdown} />
       </div>
 
-      <SectionHeading title="Hospital at a Glance" tag="Overview · KPIs ranked by impact" />
+      <SectionHeading title="Hospital at a Glance" tag="Unified Operational + Financial KPIs" />
       <MetricGrid>
         <MetricCard label="Total Claims" value={n.toLocaleString()} subtitle="All admissions in period" highlighted weight="Highest Weight" />
-        <MetricCard label="Total Billed" value={fmt(totalClaimed)} subtitle="Gross claimed from payers" weight="Highest Weight" />
+        <MetricCard label="Gross Billed" value={fmt(totalClaimed)} subtitle="Top of revenue funnel" weight="Highest Weight" />
         <MetricCard label="Total Approved" value={fmt(totalApproved)} subtitle="Approved by payers" weight="High Weight" />
-        <MetricCard label="Total Collected" value={fmt(totalSettled)} subtitle="Net settled by payers" />
+        <MetricCard label="Net Collected" value={fmt(totalSettled)} subtitle={fN(pct(totalSettled, totalClaimed)) + '% of gross'} />
         <MetricCard label="Patient Paid" value={fmt(globalData.totalPatientPaid + globalData.totalCopay)} subtitle={`Incl. copay ${fmt(globalData.totalCopay)}`} />
-        <MetricCard label="Claim Approval Rate" value={fN(approvalRate) + '%'} subtitle="Approved ÷ Billed" badge={{ type: getBadgeType(approvalRate, 75, 60), text: approvalRate > 75 ? 'Healthy' : approvalRate > 60 ? 'Watch' : 'Critical' }} weight="High Weight" />
+        <MetricCard label="EBITDA Impact (proxy)" value={fmt(ebitdaProxy)} subtitle="Net settled minus TDS" badge={{ type: getBadgeType(pct(ebitdaProxy, totalClaimed), 70, 55), text: fN(pct(ebitdaProxy, totalClaimed)) + '% yield' }} />
+        <MetricCard label="Approval Rate" value={fN(approvalRate) + '%'} subtitle="Approved ÷ Billed" badge={{ type: getBadgeType(approvalRate, 75, 60), text: approvalRate > 75 ? 'Healthy' : approvalRate > 60 ? 'Watch' : 'Critical' }} weight="High Weight" />
         <MetricCard label="Net Collection Rate" value={fN(netCollRate) + '%'} subtitle="Settled ÷ Approved" badge={{ type: getBadgeType(netCollRate, 85, 70), text: netCollRate > 85 ? 'Strong' : netCollRate > 70 ? 'Average' : 'Weak' }} weight="High Weight" />
+        <MetricCard label="Payer Deduction %" value={fN(dedP) + '%'} subtitle={fmt(totalClaimed - totalApproved) + ' deducted'} />
+        <MetricCard label="Shortfall Rate" value={fN(sfP) + '%'} subtitle={fmt(totalShortfall) + ' total shortfall'} />
         <MetricCard label="End-to-End TAT" value={fN(avgTAT) + ' days'} subtitle="Avg admission to payment" badge={{ type: getBadgeType(avgTAT, 30, 60, false), text: avgTAT < 30 ? 'Fast' : avgTAT < 60 ? 'Average' : 'Slow' }} weight="Medium Weight" />
         <MetricCard label="Denial Rate" value={fN(denialRate) + '%'} subtitle={denied.length + ' denied/cancelled'} badge={{ type: getBadgeType(denialRate, 10, 20, false), text: denialRate < 10 ? 'Controlled' : 'High' }} weight="Medium Weight" />
         <MetricCard label="Pending AR" value={fmt(sm(pending.map(x => x.claimedAmt)))} subtitle={pending.length + ' open claims'} />
@@ -96,23 +121,38 @@ export function OverviewTab() {
       <ChartGrid>
         <ChartCard title="Claim Status Distribution" subtitle="Volume across all claim stages">
           <ResponsiveContainer><PieChart><Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80}>
-            {statusData.map((_, i) => <Cell key={i} fill={statusColors[i % statusColors.length]} />)}
+            {statusData.map((s, i) => <Cell key={i} fill={STATUS_CATEGORY_COLORS[s.name] || '#6B7280'} />)}
           </Pie><Tooltip formatter={(v: number) => v.toLocaleString()} /><Legend /></PieChart></ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Monthly Claims — Volume, Amount & Avg/Claim" subtitle="Bars: claims & amount (₹L) · Line: avg per claim (₹L)">
-          <ResponsiveContainer>
-            <ComposedChart data={monthlyData}>
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
-              <Tooltip formatter={(v: any, name: string) => name === 'claims' ? [v, 'Claims'] : [`₹${v}L`, name === 'amountLakhs' ? 'Amount' : 'Avg/Claim']} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar yAxisId="left" dataKey="claims" name="Claims" fill="#1D4ED8" radius={[4, 4, 0, 0]} />
-              <Bar yAxisId="right" dataKey="amountLakhs" name="Amount (₹L)" fill="#059669" radius={[4, 4, 0, 0]} />
-              <Line yAxisId="right" type="monotone" dataKey="avgPerClaim" name="Avg/Claim (₹L)" stroke="#D97706" strokeWidth={2} dot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <div className="bg-card rounded-xl p-5 border border-border shadow-card">
+          <div className="flex items-start justify-between mb-2">
+            <div>
+              <div className="text-[13px] font-semibold text-foreground">Monthly Claims</div>
+              <div className="text-[11px] text-muted-foreground">Click a bar to drill down · {monthMode === 'volume' ? 'Volume (count)' : 'Amount (₹L)'}</div>
+            </div>
+            <div className="inline-flex rounded-md border border-border overflow-hidden text-[11px]">
+              <button onClick={() => setMonthMode('volume')} className={`px-2.5 py-1 ${monthMode === 'volume' ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-muted'}`}>Volume</button>
+              <button onClick={() => setMonthMode('amount')} className={`px-2.5 py-1 ${monthMode === 'amount' ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-muted'}`}>Amount</button>
+            </div>
+          </div>
+          <div style={{ height: 240, width: '100%' }}>
+            <ResponsiveContainer>
+              <BarChart data={monthlyData}>
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => monthMode === 'amount' ? `₹${v}L` : String(v)} />
+                <Tooltip content={<MonthlyTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+                <Bar
+                  dataKey={monthMode === 'volume' ? 'claims' : 'amountLakhs'}
+                  name={monthMode === 'volume' ? 'Claims' : 'Amount (₹L)'}
+                  fill={monthMode === 'volume' ? '#1D4ED8' : '#059669'}
+                  radius={[4, 4, 0, 0]}
+                  onClick={(p: any) => setDrill({ key: p.key, label: p.name })}
+                  style={{ cursor: 'pointer' }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
         <ChartCard title="Top TPAs by Volume" subtitle="Claims count" height="300px">
           <ResponsiveContainer><BarChart data={volData} layout="vertical"><XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} /><Tooltip /><Bar dataKey="value" radius={[0, 4, 4, 0]}>
             {volData.map((_, i) => <Cell key={i} fill={MIX_PAL[i % MIX_PAL.length]} />)}
@@ -124,6 +164,15 @@ export function OverviewTab() {
           </Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer>
         </ChartCard>
       </ChartGrid>
+
+      {drill && (
+        <MonthDrillDownModal
+          open={!!drill}
+          onClose={() => setDrill(null)}
+          monthLabel={drill.label}
+          claims={monthClaims}
+        />
+      )}
     </div>
   );
 }
