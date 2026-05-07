@@ -1,5 +1,4 @@
 import { useDashboard } from '@/contexts/DashboardContext';
-import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { SectionHeading } from './SectionHeading';
@@ -8,12 +7,11 @@ import { computeHealthScore, getLeakageSummary } from '@/lib/insights-engine';
 import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType } from '@/lib/rcm-utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart,
-  PieChart, Pie, Cell, Legend, LineChart, Line
+  PieChart, Pie, Cell, Legend, Line
 } from 'recharts';
 
 export function OverviewTab() {
   const { globalData, getGroupKey } = useDashboard();
-  const { chartType } = useChartPrefs();
   if (!globalData) return null;
   const { data: d, n, totalClaimed, totalApproved, totalSettled } = globalData;
 
