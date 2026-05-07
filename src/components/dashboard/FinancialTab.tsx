@@ -5,7 +5,7 @@ import { DataTable } from './DataTable';
 import { SectionHeading } from './SectionHeading';
 import { InsightList } from './InsightCard';
 import { getFinancialInsights } from '@/lib/insights-engine';
-import { fmt, fN, pct, median, getBadgeType, shortP } from '@/lib/rcm-utils';
+import { fmt, fN, pct, shortP } from '@/lib/rcm-utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 export function FinancialTab() {
