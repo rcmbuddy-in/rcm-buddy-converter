@@ -26,7 +26,7 @@ const LAYER_LABELS: Record<number, { title: string; subtitle: string; emoji: str
 };
 
 export function DataQualityModal() {
-  const { dqReport, dqModalOpen, closeDQModal, proceedAfterDQ, resetData } = useDashboard();
+  const { dqReport, dqModalOpen, closeDQModal, proceedAfterDQ, resetData, bypassDQ } = useDashboard();
   const [tab, setTab] = useState<'overview' | 'issues' | 'quarantine'>('overview');
 
   const topIssues = Object.entries(dqReport?.flagsByRule ?? {})
@@ -291,6 +291,15 @@ export function DataQualityModal() {
                 >
                   Close
                 </button>
+                {r.quarantined.length > 0 && (
+                  <button
+                    onClick={bypassDQ}
+                    title="Skip the quality gate and load every claim, including quarantined rows"
+                    className="px-4 py-2 text-xs font-semibold rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors"
+                  >
+                    ⚠ Bypass &amp; Load All ({r.totalRows.toLocaleString()})
+                  </button>
+                )}
                 <button
                   onClick={proceedAfterDQ}
                   className="px-5 py-2 text-xs font-bold rounded-lg bg-rcm-700 text-primary-foreground hover:bg-rcm-800 transition-colors"
