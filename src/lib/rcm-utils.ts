@@ -107,6 +107,22 @@ export function median(arr: number[]): number {
 export const R_PAL = ['#9B1C1C', '#B91C1C', '#DC2626', '#EF4444', '#F87171', '#FCA5A5', '#FECACA', '#E5E7EB'];
 export const MIX_PAL = ['#DC2626', '#1D4ED8', '#059669', '#D97706', '#7C3AED', '#0891B2', '#BE185D', '#65A30D', '#9D174D', '#1E40AF', '#047857', '#B45309'];
 
+// 4-role severity palette — used across the Command Center for visual hierarchy.
+// Status-specific charts continue to use STATUS_COLORS below.
+export const SEVERITY = {
+  critical: '#9B1C1C',
+  warning:  '#D97706',
+  good:     '#059669',
+  neutral:  '#6B7280',
+} as const;
+export type SeverityKey = keyof typeof SEVERITY;
+
+export function severityFromScore(v: number, goodAt = 75, warnAt = 50): SeverityKey {
+  if (v >= goodAt) return 'good';
+  if (v >= warnAt) return 'warning';
+  return 'critical';
+}
+
 // Consistent claim-status colors across the dashboard
 // Settled = green, denied/cancelled = red, pre-auth = amber, processing/approved = blue, other = gray
 export const STATUS_COLORS: Record<string, string> = {
