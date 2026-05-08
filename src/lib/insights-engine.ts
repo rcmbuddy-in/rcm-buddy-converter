@@ -345,3 +345,123 @@ export function getLeakageSummary(g: GlobalData): { total: number; breakdown: { 
     ],
   };
 }
+
+/** Recoverable vs structural leakage split. */
+export function getRecoverabilitySplit(g: GlobalData) {
+  const { totalShortfall, totalDiscount, totalTDS, leakageData } = g;
+  const recoverable = leakageData.payerDed + leakageData.uncollected + leakageData.deniedVal;
+  const structural = totalShortfall + totalDiscount + totalTDS;
+  const total = recoverable + structural;
+  return { recoverable, structural, total, recPct: total ? (recoverable / total) * 100 : 0 };
+}
+
+/** Root-cause table rows derived from existing claim categories. */
+export interface RootCauseRow {
+  bottleneck: string;
+  impact: number;
+  rootCause: string;
+  owner: string;
+  action: string;
+}
+
+export function generateRootCauses(g: GlobalData): RootCauseRow[] {
+  const { data, leakageData, totalShortfall } = g;
+  const out: RootCauseRow[] = [];
+
+  if (leakageData.payerDed > 0) out.push({
+    bottleneck: 'Payer deductions on approved claims',
+    impact: leakageData.payerDed,
+    rootCause: 'Tariff mismatch, non-payable consumables, package vs itemised billing',
+    owner: 'Billing / Finance',
+    action: 'Quarterly tariff reconciliation; coding audit',
+  });
+  if (totalShortfall > 0) out.push({
+    bottleneck: 'Shortfall on settlements',
+    impact: totalShortfall,
+    rootCause: 'Documentation gaps, sum-insured exhaustion, exclusions invoked',
+    owner: 'Insurance Desk',
+    action: 'Pre-admission eligibility deep-check + discharge document SOP',
+  });
+  if (leakageData.uncollected > 0) out.push({
+    bottleneck: 'Approved but uncollected AR',
+    impact: leakageData.uncollected,
+    rootCause: 'Payer cash-cycle delay, missing UTR reconciliation',
+    owner: 'AR / Finance',
+    action: 'Weekly payer follow-up matrix; bank reco with payment desk',
+  });
+  if (leakageData.deniedVal > 0) out.push({
+    bottleneck: 'Outright denials',
+    impact: leakageData.deniedVal,
+    rootCause: 'Pre-auth gaps, late submission, discharge summary issues',
+    owner: 'RCM Lead',
+    action: 'Daily denial huddle + appeal calendar within 7 days',
+  });
+
+  const stalePAQ = data.filter(x => x.status === 'Pre Auth Query');
+  if (stalePAQ.length > 0) out.push({
+    bottleneck: `${stalePAQ.length} pre-auth queries open`,
+    impact: sm(stalePAQ.map(x => x.claimedAmt)),
+    rootCause: 'Front-desk delay in clarifying payer queries',
+    owner: 'Front Desk',
+    action: '24-hour query-resolution SLA; daily standup',
+  });
+
+  return out.sort((a, b) => b.impact - a.impact);
+}
+
+/** Priority-grouped recommendations for the Intelligence tab. */
+export interface Recommendation {
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  rationale: string;
+}
+
+export function generateRecommendations(g: GlobalData): Recommendation[] {
+  const out: Recommendation[] = [];
+  const { data, totalClaimed, totalApproved, totalSettled, leakageData } = g;
+  const approvalRate = pct(totalApproved, totalClaimed);
+  const collRate = pct(totalSettled, totalApproved);
+  const denied = data.filter(x => isDenied(x.status)).length;
+  const denialRate = pct(denied, data.length);
+
+  if (approvalRate < 75) out.push({
+    priority: 'high',
+    title: 'Tighten pre-auth and documentation',
+    rationale: `Approval rate ${fN(approvalRate)}% is below the 75% benchmark — every 1% lift is worth ${fmt(totalClaimed * 0.01)}.`,
+  });
+  if (collRate < 85) out.push({
+    priority: 'high',
+    title: 'Run aging-based AR collection drive',
+    rationale: `Net collection ${fN(collRate)}% lags 85% target; ${fmt(leakageData.uncollected)} sits in approved-uncollected.`,
+  });
+  const stalePAQ = data.filter(x => x.status === 'Pre Auth Query').length;
+  if (stalePAQ >= 5) out.push({
+    priority: 'high',
+    title: `Resolve ${stalePAQ} open pre-auth queries today`,
+    rationale: 'TPAs auto-cancel queries past 30 days. Frontline action recovers the most leakage at lowest cost.',
+  });
+
+  if (denialRate > 10) out.push({
+    priority: 'medium',
+    title: 'Stand up a denial-review committee',
+    rationale: `Denial rate ${fN(denialRate)}% — root-cause workshops cut preventable denials within 60 days.`,
+  });
+  if (leakageData.payerDed > 1_00_000) out.push({
+    priority: 'medium',
+    title: 'Re-negotiate top-3 payer tariffs',
+    rationale: `${fmt(leakageData.payerDed)} lost to payer deductions; renegotiation typically recovers 15–25%.`,
+  });
+
+  out.push({
+    priority: 'low',
+    title: 'Standardise procedure coding (ICD/CPT)',
+    rationale: 'Coding consistency reduces shortfall and improves audit defensibility.',
+  });
+  out.push({
+    priority: 'low',
+    title: 'Publish weekly RCM scorecard to clinical heads',
+    rationale: 'Visibility drives accountability across departments and consultants.',
+  });
+
+  return out;
+}
