@@ -3,10 +3,19 @@ import { ChartPrefsProvider } from '@/contexts/ChartPrefsContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { UploadScreen } from '@/components/UploadScreen';
 import { TopBar, NavTabs, FilterBar } from '@/components/dashboard/DashboardLayout';
-import { CommandCenterTab } from '@/components/dashboard/CommandCenterTab';
-import { LeakageAnalysisTab } from '@/components/dashboard/LeakageAnalysisTab';
-import { OperationsTab } from '@/components/dashboard/OperationsTab';
-import { IntelligenceTab } from '@/components/dashboard/IntelligenceTab';
+import { OverviewTab } from '@/components/dashboard/OverviewTab';
+import { FinancialTab } from '@/components/dashboard/FinancialTab';
+import { TATTab } from '@/components/dashboard/TATTab';
+import { DenialTab } from '@/components/dashboard/DenialTab';
+import { ARTab } from '@/components/dashboard/ARTab';
+import { PayerTab } from '@/components/dashboard/PayerTab';
+import { LeakageTab } from '@/components/dashboard/LeakageTab';
+import { AIReportTab } from '@/components/dashboard/AIReportTab';
+import { MoMTab } from '@/components/dashboard/MoMTab';
+import { CorporateTab } from '@/components/dashboard/CorporateTab';
+import { CashFlowTab } from '@/components/dashboard/CashFlowTab';
+import { PayerProfitabilityTab } from '@/components/dashboard/PayerProfitabilityTab';
+import { DSOTab } from '@/components/dashboard/DSOTab';
 import { DataQualityModal } from '@/components/dashboard/DataQualityModal';
 
 function DashboardContent() {
@@ -27,10 +36,19 @@ function DashboardContent() {
       <NavTabs />
       <FilterBar />
       <div id="dashboard-tab-content" className="max-w-[1440px] mx-auto px-7 py-6">
-        {(activeTab === 'command' || activeTab === 'overview') && <CommandCenterTab />}
-        {activeTab === 'leakage-analysis' && <LeakageAnalysisTab />}
-        {activeTab === 'ops' && <OperationsTab />}
-        {activeTab === 'intel' && <IntelligenceTab />}
+        {activeTab === 'overview' && <OverviewTab />}
+        {activeTab === 'financial' && <FinancialTab />}
+        {activeTab === 'tat' && <TATTab />}
+        {activeTab === 'denial' && <DenialTab />}
+        {activeTab === 'ar' && <ARTab />}
+        {activeTab === 'payer' && <PayerTab />}
+        {activeTab === 'mom' && <MoMTab />}
+        {activeTab === 'corporate' && <CorporateTab />}
+        {activeTab === 'cashflow' && <CashFlowTab />}
+        {activeTab === 'profitability' && <PayerProfitabilityTab />}
+        {activeTab === 'dso' && <DSOTab />}
+        {activeTab === 'leakage' && <LeakageTab />}
+        {activeTab === 'ai-report' && <AIReportTab />}
       </div>
       <DataQualityModal />
     </div>

@@ -107,69 +107,6 @@ export function median(arr: number[]): number {
 export const R_PAL = ['#9B1C1C', '#B91C1C', '#DC2626', '#EF4444', '#F87171', '#FCA5A5', '#FECACA', '#E5E7EB'];
 export const MIX_PAL = ['#DC2626', '#1D4ED8', '#059669', '#D97706', '#7C3AED', '#0891B2', '#BE185D', '#65A30D', '#9D174D', '#1E40AF', '#047857', '#B45309'];
 
-// 4-role severity palette — used across the Command Center for visual hierarchy.
-// Status-specific charts continue to use STATUS_COLORS below.
-export const SEVERITY = {
-  critical: '#9B1C1C',
-  warning:  '#D97706',
-  good:     '#059669',
-  neutral:  '#6B7280',
-} as const;
-export type SeverityKey = keyof typeof SEVERITY;
-
-export function severityFromScore(v: number, goodAt = 75, warnAt = 50): SeverityKey {
-  if (v >= goodAt) return 'good';
-  if (v >= warnAt) return 'warning';
-  return 'critical';
-}
-
-// Consistent claim-status colors across the dashboard
-// Settled = green, denied/cancelled = red, pre-auth = amber, processing/approved = blue, other = gray
-export const STATUS_COLORS: Record<string, string> = {
-  'Settled': '#059669',
-  'Settlement Initiated': '#10B981',
-  'Enhancement Approved': '#15803D',
-  'Claim Approved': '#0EA5E9',
-  'Discharge Approved': '#0284C7',
-  'Processing': '#1D4ED8',
-  'Claim in Progress': '#1E40AF',
-  'Pre Auth Initiated': '#D97706',
-  'Pre Auth Submitted to Payer': '#B45309',
-  'Pre Auth Approved': '#F59E0B',
-  'Pre Auth Query': '#F97316',
-  'Pre Auth Query Replied': '#FB923C',
-  'Pre Auth Denied': '#DC2626',
-  'Discharge Denied': '#B91C1C',
-  'Claim Denied': '#9B1C1C',
-  'Reconsideration Submitted': '#7C3AED',
-  'Enhancement Denied': '#BE185D',
-  'Cancelled': '#6B7280',
-};
-
-// Group statuses to a high-level category with a stable color
-export const STATUS_CATEGORY_COLORS: Record<string, string> = {
-  'Settled': '#059669',
-  'Approved': '#0EA5E9',
-  'Processing': '#1D4ED8',
-  'Pre-Auth Stage': '#D97706',
-  'Denied/Cancelled': '#DC2626',
-  'Other': '#6B7280',
-};
-
-export function categorizeStatus(status: string): string {
-  const s = (status || '').toLowerCase();
-  if (s.includes('settled') || s.includes('settlement')) return 'Settled';
-  if (s.includes('denied') || status === 'Cancelled' || s.includes('reconsideration')) return 'Denied/Cancelled';
-  if (s.includes('pre auth')) return 'Pre-Auth Stage';
-  if (s.includes('processing') || s.includes('progress')) return 'Processing';
-  if (s.includes('approved')) return 'Approved';
-  return 'Other';
-}
-
-export function statusColor(status: string): string {
-  return STATUS_COLORS[status] || STATUS_CATEGORY_COLORS[categorizeStatus(status)] || '#6B7280';
-}
-
 // Badge helpers
 export type BadgeType = 'good' | 'warning' | 'critical' | 'info';
 

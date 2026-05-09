@@ -41,7 +41,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [globalData, setGlobalData] = useState<GlobalData | null>(null);
   const [groupBy, setGroupBy] = useState<GroupBy>('tpa');
   const [period, setPeriodState] = useState('all');
-  const [activeTab, setActiveTab] = useState('command');
+  const [activeTab, setActiveTab] = useState('overview');
   const [allRecords, setAllRecords] = useState<ClaimRecord[]>([]);
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
@@ -150,7 +150,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const resetData = useCallback(() => {
     setGlobalData(null);
     setAllRecords([]);
-    setActiveTab('command');
+    setActiveTab('overview');
     setPeriodState('all');
     setDateFrom(undefined);
     setDateTo(undefined);

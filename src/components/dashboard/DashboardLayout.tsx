@@ -12,10 +12,19 @@ import { cn } from '@/lib/utils';
 import logo from '@/assets/rcm-buddy-logo.png';
 
 const TABS = [
-  { id: 'command',  label: '⌖ Command Center' },
-  { id: 'leakage-analysis', label: '⚠ Leakage Analysis', special: true },
-  { id: 'ops',      label: '⚡ Operations' },
-  { id: 'intel',    label: '✦ Intelligence', ai: true },
+  { id: 'overview', label: 'Overview' },
+  { id: 'financial', label: 'Financial KPIs' },
+  { id: 'cashflow', label: '💰 Cash Flow 90d' },
+  { id: 'dso', label: '⚡ DSO & Velocity' },
+  { id: 'profitability', label: '📊 Payer Profitability' },
+  { id: 'tat', label: 'TAT Analysis' },
+  { id: 'denial', label: 'Denial Analysis' },
+  { id: 'ar', label: 'AR Management' },
+  { id: 'payer', label: 'Payer Performance' },
+  { id: 'mom', label: '📈 MoM Trends' },
+  { id: 'corporate', label: '🏢 Corporate' },
+  { id: 'leakage', label: '⚠ Revenue Leakage', special: true },
+  { id: 'ai-report', label: '✦ AI Report', ai: true },
 ];
 
 export function TopBar() {
@@ -30,7 +39,7 @@ export function TopBar() {
           <img src={logo} alt="RCM Buddy" className="w-10 h-10 rounded-lg bg-primary-foreground/10 p-0.5" />
           <div>
             <div className="font-display text-lg font-bold text-primary-foreground">RCM Buddy</div>
-            <div className="text-[10px] text-primary-foreground/45 tracking-wider uppercase">Leakage Command Center</div>
+            <div className="text-[10px] text-primary-foreground/45 tracking-wider uppercase">Revenue Care for Healthcare</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
