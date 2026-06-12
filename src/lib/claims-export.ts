@@ -213,6 +213,166 @@ export function exportClaimsWorkbook(global: GlobalData) {
   const ws6 = XLSX.utils.aoa_to_sheet(def);
   ws6['!cols'] = [{ wch: 36 }, { wch: 90 }];
 
+  // ===== Sheet 7: Source Mapping =====
+  // Maps every on-screen chart/KPI to the exact sheet, rows, and Excel formulas
+  const srcMap: any[][] = [
+    ['Dashboard Tab', 'Chart / KPI Name', 'Excel Sheet', 'Cell / Row Ref', 'Formula / Derivation', 'Description'],
+
+    // Overview Tab
+    ['Overview', 'Total Claims', 'KPI Summary', 'B2', '=COUNTA(Claims!A2:A{last})', 'Count of all claim records'],
+    ['Overview', 'Total Billed', 'KPI Summary', 'B3', '=SUM(Claims!G2:G{last})', 'Gross claimed from payers'],
+    ['Overview', 'Total Approved', 'KPI Summary', 'B4', '=SUM(Claims!H2:H{last})', 'Amount approved by payers'],
+    ['Overview', 'Total Collected', 'KPI Summary', 'B5', '=SUM(Claims!M2:M{last})', 'Cash received from payers'],
+    ['Overview', 'Patient Paid (incl. Copay)', 'KPI Summary', 'B10', '=SUM(Claims!L2:L{last})+SUM(Claims!I2:I{last})', 'Patient Paid + Copay columns'],
+    ['Overview', 'Claim Approval Rate', 'KPI Summary', 'B12', '=IFERROR(B4/B3,0)', 'Approved ÷ Claimed'],
+    ['Overview', 'Net Collection Rate', 'KPI Summary', 'B13', '=IFERROR(B5/B4,0)', 'Settled ÷ Approved'],
+    ['Overview', 'End-to-End TAT', 'Claims', 'Y2:Y{last}', '=Payment Date − Admission Date', 'Average of column Y for settled claims'],
+    ['Overview', 'Denial Rate', 'Claims', 'V2:V{last}', '=COUNTIF(V2:V{last},"Denied") / COUNTA(V2:V{last})', 'Denied status category ÷ total'],
+    ['Overview', 'Pending AR', 'Claims', 'V2:V{last}', '=SUMIF(V2:V{last},"Active / Pending",G2:G{last})', 'Sum claimed where status category = Active/Pending'],
+    ['Overview', 'Claim Status Distribution', 'Claims', 'V2:V{last}', 'COUNTIF by Status Category', 'Pie chart of Status Category counts'],
+    ['Overview', 'Monthly Claims — Volume', 'Claims', 'B2:B{last}', 'Pivot by month of Admission Date', 'Bar: count of claims per month'],
+    ['Overview', 'Monthly Claims — Amount', 'Claims', 'G2:G{last}', 'SUMIF by month of Admission Date', 'Bar: sum of Claimed Amt per month'],
+    ['Overview', 'Monthly Claims — Avg/Claim', 'Claims', 'G2:G{last}', 'SUMIF÷COUNTIF by month', 'Line: average claim value per month'],
+    ['Overview', 'Top TPAs by Volume', 'TPA Performance', 'A2:D{tpalast}', 'Ranked by Claims column', 'Horizontal bar of claim count per TPA'],
+    ['Overview', 'Policy Type Split', 'Claims', 'T2:T{last}', 'COUNTIF by Policy Type', 'Pie chart of policy type distribution'],
+    ['Overview', 'Hospital Health Score', 'KPI Summary', '—', 'Weighted: Appr(25%)+Coll(25%)+Denial-inv(20%)+AR<90d(15%)+TAT-inv(15%)', 'Composite 0-100 score'],
+    ['Overview', 'Leakage Banner Total', 'Revenue Leakage', 'B2:B5', '=SUM(Revenue Leakage!B2:B5)', 'Sum of all leakage buckets'],
+
+    // Financial Tab
+    ['Financial', 'Gross Billed', 'KPI Summary', 'B3', '=SUM(Claims!G2:G{last})', 'Same as Total Claimed'],
+    ['Financial', 'Net Collected', 'KPI Summary', 'B5', '=SUM(Claims!M2:M{last})', 'Same as Total Settled'],
+    ['Financial', 'EBITDA Impact (proxy)', 'KPI Summary', 'B16', '=B5-B9', 'Settled minus TDS'],
+    ['Financial', 'Gross→Net Leakage', 'KPI Summary', 'B3,B5', '=B3-B5', 'Claimed − Settled'],
+    ['Financial', 'Approval Rate', 'KPI Summary', 'B12', '=IFERROR(B4/B3,0)', 'Same as Overview'],
+    ['Financial', 'Payer Deduction %', 'KPI Summary', 'B3,B4,B6', '=IFERROR((B3-B4-B6)/B3,0)', '(Claimed − Approved − Shortfall) ÷ Claimed'],
+    ['Financial', 'Net Collection Rate', 'KPI Summary', 'B13', '=IFERROR(B5/B4,0)', 'Same as Overview'],
+    ['Financial', 'Shortfall Rate', 'KPI Summary', 'B6,B3', '=IFERROR(B6/B3,0)', 'Shortfall ÷ Claimed'],
+    ['Financial', 'Average Claim Value Waterfall', 'Claims', 'G2:G{last}, H2:H{last}, etc.', 'Step-down: Billed → Approved → After SF → After Copay → After Disc → Settled → After TDS', 'Waterfall of avg per-claim amounts'],
+    ['Financial', 'Deduction Breakdown', 'Claims', 'G2:G{last}, H2:H{last}, etc.', 'SUM of: Net Settled, Payer Deductions, Shortfall, Copay, Discount, TDS', 'Pie of where billed amount goes'],
+    ['Financial', 'Deduction % Trend', 'Claims', 'B2:F{last}', 'Quarterly SUM(Claimed) − SUM(Settled) ÷ SUM(Claimed)', 'Quarterly leakage trajectory'],
+    ['Financial', 'Insurer Profitability', 'TPA Performance', 'A2:J{tpalast}', 'Settled ÷ Claimed per insurer', 'Net yield % by insurer'],
+    ['Financial', 'Insurer Profitability Ranking', 'TPA Performance', 'A2:J{tpalast}', 'Same as above, sorted by settled desc', 'Table of insurer KPIs'],
+    ['Financial', 'Financial Summary by Quarter', 'Claims', 'B2:F{last}', 'Quarterly aggregation of claimed, approved, settled', 'Quarterly table with approval & collection %'],
+
+    // Denial Tab
+    ['Denial', 'Pre-Auth Approved', 'Claims', 'O2:O{last}', '=COUNTIFS(O2:O{last},"Pre Auth Approved") + COUNTIFS(...,"Discharge Approved")', 'Count of approved pre-auth statuses'],
+    ['Denial', 'Pre-Auth Denied', 'Claims', 'O2:O{last}', '=COUNTIFS(O2:O{last},"Pre Auth Denied")', 'Count of Pre Auth Denied'],
+    ['Denial', 'Overall Denial Rate', 'Claims', 'V2:V{last}', '=COUNTIF(V2:V{last},"Denied") / COUNTA(V2:V{last})', 'Denied category ÷ total claims'],
+    ['Denial', 'Denied Claim Value', 'Claims', 'G2:G{last}, V2:V{last}', '=SUMIF(V2:V{last},"Denied",G2:G{last})', 'Sum claimed where status category = Denied'],
+    ['Denial', 'Preventable Denials', 'Claims', 'O2:O{last}', 'Count of statuses: Pre Auth Denied, Claim Denied, etc. (excluding Cancellation)', 'Denials with reconsideration potential'],
+    ['Denial', 'Recovery Probability', 'Claims', 'W2:W{last}, V2:V{last}', 'Count of denied claims where Age < 30 days ÷ total denied', '% of denials still within appeal window'],
+    ['Denial', 'Preventable vs Non-Preventable', 'Claims', 'O2:O{last}, G2:G{last}', 'Sum of claimed by preventable flag', 'Bar chart split by preventability'],
+    ['Denial', 'Top Preventable Reasons', 'Claims', 'O2:O{last}', 'COUNTIF by specific denied status', 'Horizontal bar of top denied statuses'],
+    ['Denial', 'Pre-Auth: Approved vs Denied', 'Claims', 'O2:O{last}', 'COUNTIF by Pre Auth Approved / Pre Auth Denied', 'Bar chart of pre-auth outcomes'],
+    ['Denial', 'TPA-wise Denial Rate', 'TPA Performance', 'A2:J{tpalast}', 'Denied # ÷ Claims per TPA', 'Horizontal bar of denial % by TPA'],
+    ['Denial', 'Denial Reasons', 'Claims', 'O2:O{last}', 'COUNTIF by exact Status', 'Pie chart of denial status distribution'],
+    ['Denial', 'Denial Detail by TPA', 'TPA Performance', 'A2:J{tpalast}', 'Full TPA Performance table', 'Table: total, denied, denial %, denied value'],
+
+    // TAT Tab
+    ['TAT', 'Submission TAT', 'Claims', 'Y2:Y{last} (Adm→DocSubmit)', '=Doc Submit Date − Admission Date', 'Avg days from admission to document submission'],
+    ['TAT', 'Payment TAT', 'Claims', 'Y2:Y{last} (DocSubmit→Payment)', '=Payment Date − Doc Submit Date', 'Avg days from submission to payment'],
+    ['TAT', 'End-to-End TAT', 'Claims', 'Y2:Y{last}', '=Payment Date − Admission Date', 'Avg days admission to settlement'],
+    ['TAT', 'Length of Stay', 'Claims', 'C2:C{last}, B2:B{last}', '=Discharge Date − Admission Date', 'Avg days from admission to discharge'],
+    ['TAT', 'Discharge-to-Settle', 'Claims', 'Q2:Q{last}, C2:C{last}', '=Payment Date − Discharge Date', 'Avg days post-discharge to clearance'],
+    ['TAT', 'TPA-wise Average Payment TAT', 'TPA Performance', 'A2:J{tpalast}', 'Avg TAT (Days) column', 'Horizontal bar of avg TAT per TPA'],
+    ['TAT', 'Length of Stay Distribution', 'Claims', 'C2:C{last}, B2:B{last}', 'Bucketed counts: 1-3, 4-7, 8-14, 15-30, 31+ days', 'Bar chart of LOS buckets'],
+    ['TAT', 'TAT Breakdown by Stage', 'Claims', 'B2:Q{last}', 'MIN/MAX/AVERAGE of date differences by stage', 'Table of stage-wise TAT stats'],
+
+    // AR Tab
+    ['AR', 'Total Pending AR', 'Claims', 'V2:V{last}, G2:G{last}', '=SUMIF(V2:V{last},"Active / Pending",G2:G{last})', 'Sum claimed for non-settled/non-denied claims'],
+    ['AR', 'AR-to-Revenue Ratio', 'KPI Summary', 'B3 + Pending AR', '=Pending AR ÷ Total Claimed', '% of billed still outstanding'],
+    ['AR', '90+ Day Aged Claims', 'AR Aging', 'A4:A5', '=SUM(AR Aging!B4:B5) claims; =SUM(AR Aging!C4:C5) value', '91-180 + 180+ buckets'],
+    ['AR', '180+ Day Claims', 'AR Aging', 'A5', '=AR Aging!B5 claims; =AR Aging!C5 value', 'Critical age bucket'],
+    ['AR', 'AR Aging Distribution', 'AR Aging', 'A2:D6', 'All buckets: count & value', 'Bar chart of outstanding value by age'],
+    ['AR', 'Claims Pipeline', 'Claims', 'O2:O{last}', 'COUNTIF by Status for pending claims', 'Pie chart of open claim statuses'],
+    ['AR', 'AR Aging Detail', 'AR Aging', 'A2:D6', 'Same as chart, tabular', 'Table: bucket, claims, value, % of AR'],
+
+    // Payer Tab
+    ['Payer', 'Active TPAs', 'TPA Performance', 'A2:A{tpalast}', 'COUNTA of unique TPA names', 'Number of distinct payers'],
+    ['Payer', 'Top Payer by Volume', 'TPA Performance', 'A2:D{tpalast}', 'MAX of Claims column', 'TPA with highest claim count'],
+    ['Payer', 'Best Approval Rate', 'TPA Performance', 'G2:G{tpalast}', 'MAX of Approval % column', 'TPA with highest approval %'],
+    ['Payer', 'Worst Approval Rate', 'TPA Performance', 'G2:G{tpalast}', 'MIN of Approval % column', 'TPA with lowest approval %'],
+    ['Payer', 'Payer Concentration', 'TPA Performance', 'A2:D{tpalast}, KPI Summary B3', '=Top TPA Claimed ÷ Total Claimed', '% share of largest payer'],
+    ['Payer', 'TPA-wise Approval Rate', 'TPA Performance', 'A2:G{tpalast}', 'Approval % column, sorted desc', 'Horizontal bar of approval %'],
+    ['Payer', 'Revenue Concentration', 'TPA Performance', 'A2:E{tpalast}', 'Settled column, top 8', 'Pie chart of settled amount by payer'],
+    ['Payer', 'Net Collection Rate by TPA', 'TPA Performance', 'A2:H{tpalast}', 'Collection % column, sorted desc', 'Horizontal bar of collection %'],
+    ['Payer', 'Full Payer Scorecard', 'TPA Performance', 'A2:J{tpalast}', 'All columns per TPA', 'Complete table with grade calculation'],
+
+    // Leakage Tab
+    ['Leakage', 'Total Recoverable Leakage', 'Revenue Leakage', 'B2:B5', '=SUM(Revenue Leakage!B2:B5)', 'Sum of all 4 leakage buckets'],
+    ['Leakage', 'Payer Deductions', 'Revenue Leakage', 'B2', '=MAX(0,Claimed−Approved−Shortfall) or KPI B17', 'Permanently disallowed by payer'],
+    ['Leakage', 'Policy Shortfall', 'Revenue Leakage', 'B3', '=SUM(Claims!J2:J{last})', 'Sum of Shortfall column'],
+    ['Leakage', 'Uncollected Approved', 'Revenue Leakage', 'B4', '=MAX(0,Approved−Settled−Copay−TDS) or KPI B18', 'Approved but cash not received'],
+    ['Leakage', 'Denied Claims Value', 'Revenue Leakage', 'B5', '=SUMIF(V2:V{last},"Denied",G2:G{last})', 'Sum claimed for denied status category'],
+    ['Leakage', 'Leakage Composition', 'Revenue Leakage', 'A2:B5', 'All 4 buckets as pie data', 'Pie chart of leakage breakdown'],
+    ['Leakage', 'TPA-wise Revenue Leakage', 'TPA Performance', 'A2:E{tpalast}', 'Payer Deduction + Shortfall per TPA', 'Horizontal bar of leakage by TPA'],
+    ['Leakage', 'Leakage Recovery by Payer', 'TPA Performance', 'A2:J{tpalast}', 'Full TPA Performance with deduction & shortfall', 'Table of leakage opportunities per payer'],
+
+    // Cash Flow Tab
+    ['Cash Flow', 'Total Open AR', 'AR Aging / Claims', 'Pending sum', '=SUMIF(V2:V{last},"Active / Pending",G2:G{last})', 'Same as AR tab'],
+    ['Cash Flow', 'Expected (90 days)', 'Claims', 'G2:G{last}, W2:W{last}', 'Open claims × payer historical realization rate, bucketed by projected days', 'Forecast using payer-specific rates'],
+    ['Cash Flow', 'Beyond 90 Days', 'Claims', 'G2:G{last}', 'Remaining open AR not in 90-day buckets', 'Long-tail collection estimate'],
+    ['Cash Flow', 'At-Risk Receivables', 'Claims', 'G2:G{last}, W2:W{last}', '180+ day open claims × 50% provision', 'Provisioned at-risk amount'],
+    ['Cash Flow', 'Cash Flow by Period', 'Claims', 'G2:G{last}, W2:W{last}', 'Bucketed expected collections: W1-2, W3-4, M2, M3, Beyond', 'Bar chart of forecast buckets'],
+    ['Cash Flow', 'Cumulative 90-Day Forecast', 'Claims', 'G2:G{last}, W2:W{last}', 'Running total of weekly expected', 'Line + bar of cumulative forecast'],
+    ['Cash Flow', 'Top Payer Forecast', 'TPA Performance', 'A2:J{tpalast}', 'Open claims per TPA × realization rate', 'Table of payer-specific forecasts'],
+
+    // DSO Tab
+    ['DSO', 'DSO (Days Sales Outstanding)', 'KPI Summary', 'B3, Pending AR', '=(Pending AR ÷ Total Claimed) × Period Days', 'Industry benchmark: <45d excellent'],
+    ['DSO', 'Avg Collection TAT', 'Claims', 'Y2:Y{last}', 'AVERAGE of Payment Date − Admission Date', 'For settled claims only'],
+    ['DSO', 'Pending AR', 'Claims', 'V2:V{last}, G2:G{last}', '=SUMIF(V2:V{last},"Active / Pending",G2:G{last})', 'Same as AR tab'],
+    ['DSO', 'Net Collection Rate', 'KPI Summary', 'B5/B3', '=IFERROR(B5/B3,0)', 'Settled ÷ Claimed'],
+    ['DSO', 'Velocity @ 30/60/90 days', 'Claims', 'Y2:Y{last}', '=% of settled claims with TAT ≤ N days', 'Collection speed buckets'],
+    ['DSO', 'DSO Trend (Monthly)', 'Claims', 'B2:G{last}', 'Monthly (Pending ÷ Billed) × 30', 'Line + bar of monthly DSO'],
+    ['DSO', 'Collection Velocity Curve', 'Claims', 'Y2:Y{last}', 'Cumulative % settled within N days', 'Bar chart of velocity at 15/30/45/60/75/90/120/180d'],
+    ['DSO', 'Industry Benchmark Comparison', 'KPI Summary + Claims', 'B3,B5, Y2:Y{last}', 'Derived from DSO, TAT, Net Collection, Velocity', 'Table vs industry standards'],
+
+    // MoM Tab
+    ['MoM', 'Latest Month Volume', 'Claims', 'B2:B{last}', 'COUNTIF by latest month of Admission Date', 'Current month claim count'],
+    ['MoM', 'Latest Billed', 'Claims', 'G2:G{last}', 'SUMIF by latest month', 'Current month billed amount'],
+    ['MoM', 'Latest Collected', 'Claims', 'M2:M{last}', 'SUMIF by latest month', 'Current month settled amount'],
+    ['MoM', 'Approval Rate Trend', 'Claims', 'G2:G{last}, H2:H{last}', 'Monthly SUM(Approved)÷SUM(Claimed)', 'Line chart of monthly approval %'],
+    ['MoM', 'Collection Rate Trend', 'Claims', 'H2:H{last}, M2:M{last}', 'Monthly SUM(Settled)÷SUM(Approved)', 'Line chart of monthly collection %'],
+    ['MoM', 'Denial Rate Trend', 'Claims', 'V2:V{last}', 'Monthly COUNTIF(Denied)÷COUNTA', 'Line chart of monthly denial %'],
+    ['MoM', 'Monthly Claims Volume', 'Claims', 'B2:B{last}', 'COUNTIF by month', 'Bar/line of claims per month'],
+    ['MoM', 'Revenue Trend (Billed vs Settled)', 'Claims', 'G2:G{last}, M2:M{last}', 'SUMIF by month for claimed & settled', 'Dual line chart of monthly revenue'],
+    ['MoM', 'Monthly Performance Table', 'Claims', 'B2:M{last}', 'All monthly aggregates', 'Table of all metrics by month'],
+
+    // Corporate Tab
+    ['Corporate', 'Corporate Claims', 'Claims', 'U2:U{last}', 'COUNTIF where Policy Holder is non-blank', 'Count of corporate policy claims'],
+    ['Corporate', 'Corporate Billed', 'Claims', 'G2:G{last}, U2:U{last}', 'SUMIF where Policy Holder is non-blank', 'Billed amount for corporate claims'],
+    ['Corporate', 'Corporate Collected', 'Claims', 'M2:M{last}, U2:U{last}', 'SUMIF where Policy Holder is non-blank', 'Settled amount for corporate claims'],
+    ['Corporate', 'Approval Rate (Corp)', 'Claims', 'G2:G{last}, H2:H{last}, U2:U{last}', 'SUMIF(Approved)÷SUMIF(Claimed) for corporate', 'Corporate-specific approval %'],
+    ['Corporate', 'Net Collection Rate (Corp)', 'Claims', 'H2:H{last}, M2:M{last}, U2:U{last}', 'SUMIF(Settled)÷SUMIF(Approved) for corporate', 'Corporate-specific collection %'],
+    ['Corporate', 'Denial Rate (Corp)', 'Claims', 'O2:O{last}, U2:U{last}', 'COUNTIF(Denied)÷COUNTA for corporate', 'Corporate-specific denial %'],
+    ['Corporate', 'Top Corporates by Volume', 'Claims', 'U2:U{last}', 'COUNTIF by Policy Holder', 'Horizontal bar of top policy holders'],
+    ['Corporate', 'Corporate Monthly Trend', 'Claims', 'B2:G{last}, U2:U{last}', 'Monthly COUNTIF/SUMIF filtered by corporate', 'Line/bar of corporate monthly data'],
+    ['Corporate', 'Top Corporate Scorecard', 'Claims', 'U2:U{last}, G2:M{last}', 'Aggregated by Policy Holder', 'Table of corporate performance'],
+
+    // Payer Profitability Tab
+    ['Payer Profitability', 'Net Margin (Overall)', 'TPA Performance', 'A2:J{tpalast}', '=(Settled − TAT Cost − Deduction − Denial) ÷ Claimed, weighted', 'Overall net margin after all costs'],
+    ['Payer Profitability', 'Total Deduction Cost', 'TPA Performance', 'A2:J{tpalast}', '=MAX(0,Claimed−Approved) per TPA, summed', 'Sum of payer deductions across all TPAs'],
+    ['Payer Profitability', 'Total Denial Cost', 'TPA Performance', 'A2:J{tpalast}', '=Denied Value per TPA, summed', 'Sum of denied claim values'],
+    ['Payer Profitability', 'TAT Carrying Cost', 'TPA Performance', 'A2:J{tpalast}', '=(AvgTAT÷365) × CoC × Settled per TPA, summed', 'Cost of capital tied up in TAT'],
+    ['Payer Profitability', 'Top Profitable Payers', 'TPA Performance', 'A2:J{tpalast}', 'Net Margin % column, sorted desc', 'Horizontal bar of top net margins'],
+    ['Payer Profitability', 'Lowest Margin Payers', 'TPA Performance', 'A2:J{tpalast}', 'Net Margin % column, sorted asc', 'Horizontal bar of bottom net margins'],
+    ['Payer Profitability', 'TAT vs Margin Scatter', 'TPA Performance', 'A2:J{tpalast}', 'X=Avg TAT, Y=Net Margin %, Z=Claimed', 'Bubble chart of TAT vs margin'],
+    ['Payer Profitability', 'Full Payer Scorecard', 'TPA Performance', 'A2:J{tpalast}', 'All profitability columns per payer', 'Complete table with all cost components'],
+
+    // AI Report Tab
+    ['AI Report', 'Overall RCM Score', 'KPI Summary', 'B12:B18', 'Weighted blend of Approval, Collection, Denial, AR, TAT scores', 'Composite 0-100 executive score'],
+    ['AI Report', 'Financial Score', 'KPI Summary', 'B12,B13', 'score(Approval)×0.4 + score(Collection)×0.3 + score(Deduction)×0.3', 'Financial dimension score'],
+    ['AI Report', 'TAT Speed Score', 'Claims', 'Y2:Y{last}', 'score(Submission)×0.3 + score(Payment)×0.4 + score(E2E)×0.3', 'Turnaround dimension score'],
+    ['AI Report', 'Denial Mgmt Score', 'Claims', 'V2:V{last}', 'score(DenialRate)×0.5 + score(PreAuthDenial)×0.5', 'Denial control dimension score'],
+    ['AI Report', 'AR Health Score', 'AR Aging', 'A2:D6', 'score(180d)×0.4 + score(90d)×0.3 + score(ARratio)×0.3', 'AR quality dimension score'],
+    ['AI Report', 'Payer Perf. Score', 'TPA Performance', 'A2:J{tpalast}', 'Average of score(Approval)×0.5 + score(Collection)×0.3 + score(Denial)×0.2', 'Payer benchmarking dimension score'],
+    ['AI Report', 'Quick Wins', 'KPI Summary + Claims', 'Multiple', 'Rule-based recommendations from thresholds', 'Actionable recommendations'],
+  ];
+
+  const ws7 = XLSX.utils.aoa_to_sheet(srcMap);
+  ws7['!cols'] = [{ wch: 22 }, { wch: 38 }, { wch: 18 }, { wch: 22 }, { wch: 55 }, { wch: 55 }];
+  ws7['!freeze'] = { xSplit: 0, ySplit: 1 } as any;
+
   // ===== Build workbook =====
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws2, 'KPI Summary');
@@ -221,6 +381,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
   XLSX.utils.book_append_sheet(wb, ws4, 'TPA Performance');
   XLSX.utils.book_append_sheet(wb, ws5, 'Revenue Leakage');
   XLSX.utils.book_append_sheet(wb, ws6, 'Definitions');
+  XLSX.utils.book_append_sheet(wb, ws7, 'Source Mapping');
 
   const stamp = new Date().toISOString().slice(0, 10);
   const safeName = (global.hospitalName || 'Hospital').replace(/[^a-z0-9]/gi, '_');
