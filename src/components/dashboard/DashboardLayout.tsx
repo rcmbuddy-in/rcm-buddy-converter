@@ -6,6 +6,7 @@ import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { ExportDialog } from './ExportDialog';
 import { BrandThemePicker } from './BrandThemePicker';
 import { DataQualityBadge } from './DataQualityBadge';
+import { exportClaimsWorkbook } from '@/lib/claims-export';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -56,6 +57,13 @@ export function TopBar() {
         <div className="flex gap-2 items-center">
           <DataQualityBadge />
           <BrandThemePicker />
+          <button
+            onClick={() => exportClaimsWorkbook(globalData)}
+            title="Download underlying claims data with formulas & definitions"
+            className="bg-primary-foreground/15 border border-primary-foreground/25 text-primary-foreground rounded-lg px-3.5 py-1.5 text-xs font-semibold hover:bg-primary-foreground/25 transition-colors"
+          >
+            ⬇ Claims Excel
+          </button>
           <button
             onClick={() => setShowExport(true)}
             className="bg-primary-foreground/15 border border-primary-foreground/25 text-primary-foreground rounded-lg px-3.5 py-1.5 text-xs font-semibold hover:bg-primary-foreground/25 transition-colors"
