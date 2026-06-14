@@ -280,19 +280,21 @@ const appendCanvasToPdf = (
   const usableW = pageW - margin * 2;
   const usableH = pageH - margin * 2 - headerH;
   const startY = headerH + margin + 2;
-  const scale = usableW / (imgW / 2);
-  const scaledH = (imgH / 2) * scale;
-  const imgData = canvas.toDataURL('image/png');
+  const CAPTURE_SCALE = 1.5;
+  const JPEG_QUALITY = 0.82;
+  const scale = usableW / (imgW / CAPTURE_SCALE);
+  const scaledH = (imgH / CAPTURE_SCALE) * scale;
+  const imgData = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
 
   if (scaledH <= usableH) {
     if (startOnNewPage) pdf.addPage();
     addPageHeader(pdf, title, hospitalName, dateRange, sectionIndex, sectionCount, 0);
-    pdf.addImage(imgData, 'PNG', margin, startY, usableW, scaledH);
+    pdf.addImage(imgData, 'JPEG', margin, startY, usableW, scaledH, undefined, 'FAST');
     addPageFooter(pdf);
     return;
   }
 
-  const pxPerPage = Math.floor((usableH / scale) * 2);
+  const pxPerPage = Math.floor((usableH / scale) * CAPTURE_SCALE);
   let srcY = 0;
   let pageIndex = 0;
 
@@ -307,11 +309,13 @@ const appendCanvasToPdf = (
     const ctx = sliceCanvas.getContext('2d');
     if (!ctx) return;
 
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, imgW, sliceH);
     ctx.drawImage(canvas, 0, srcY, imgW, sliceH, 0, 0, imgW, sliceH);
 
-    const sliceData = sliceCanvas.toDataURL('image/png');
-    const sliceScaledH = (sliceH / 2) * scale;
-    pdf.addImage(sliceData, 'PNG', margin, startY, usableW, sliceScaledH);
+    const sliceData = sliceCanvas.toDataURL('image/jpeg', JPEG_QUALITY);
+    const sliceScaledH = (sliceH / CAPTURE_SCALE) * scale;
+    pdf.addImage(sliceData, 'JPEG', margin, startY, usableW, sliceScaledH, undefined, 'FAST');
     addPageFooter(pdf);
 
     srcY += pxPerPage;
