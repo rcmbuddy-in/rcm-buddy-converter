@@ -47,8 +47,8 @@ export function ExportRenderSurface({ tabs }: ExportRenderSurfaceProps) {
     <div
       id="dashboard-export-surface"
       aria-hidden="true"
-      className="fixed left-0 top-0 -z-10 pointer-events-none opacity-0"
-      style={{ width: '1440px', transform: 'translateX(-200vw)' }}
+      className="fixed left-0 top-0 -z-10 pointer-events-none"
+      style={{ width: '1440px', transform: 'translateX(-200vw)', background: '#ffffff' }}
     >
       {tabs.map(tabId => (
         <section
