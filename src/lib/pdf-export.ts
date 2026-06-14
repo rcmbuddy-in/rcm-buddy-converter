@@ -144,7 +144,7 @@ export async function captureElementCanvas(contentEl: HTMLElement) {
     await waitForExportPaint();
 
     return await html2canvas(contentEl, {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
       logging: false,
       foreignObjectRendering: false,
@@ -155,6 +155,14 @@ export async function captureElementCanvas(contentEl: HTMLElement) {
       scrollX: 0,
       allowTaint: true,
       onclone: (clonedDoc) => {
+        // Ensure offscreen export surface is fully opaque in the clone
+        const surface = clonedDoc.getElementById('dashboard-export-surface');
+        if (surface) {
+          surface.style.opacity = '1';
+          surface.style.transform = 'none';
+          surface.style.zIndex = '0';
+        }
+
         const clonedEl = clonedDoc.getElementById('dashboard-tab-content');
         if (!clonedEl) return;
 
