@@ -335,6 +335,7 @@ export async function exportTabsToPDF(
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
+    compress: true,
   });
 
   captures.forEach((capture, index) => {
