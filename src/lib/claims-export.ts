@@ -44,15 +44,16 @@ export function exportClaimsWorkbook(global: GlobalData) {
     'Claimed Amt', 'Approved Amt', 'Copay', 'Shortfall', 'Discount', 'Patient Paid',
     'Settled Amt', 'TDS', 'Status', 'Doc Submit Date', 'Payment Date',
     'Treatment', 'Diagnosis', 'Policy Type', 'Policy Holder / Corporate',
-    'Status Category', 'Age (Days since Admission)', 'AR Aging Bucket',
-    'TAT Adm→Payment (Days)', 'Approval %', 'Collection %', 'Net Yield %',
+    'Status Category', 'AR Age (Days since Submission)', 'AR Aging Bucket',
+    'Payer TAT Submission→Payment (Days)', 'Approval %', 'Collection %', 'Net Yield %',
     'Disallowed Amt', 'Uncollected Amt',
   ];
 
   const rows: any[][] = [header];
   data.forEach((x, i) => {
     const r = i + 2; // excel row (1-indexed, after header)
-    const age = x.admission ? Math.round((today.getTime() - x.admission.getTime()) / 86400000) : '';
+    const anc = x.docSubmit || x.discharge || x.admission;
+    const age = anc ? Math.round((today.getTime() - anc.getTime()) / 86400000) : '';
     rows.push([
       x.hospital, fmtDate(x.admission), fmtDate(x.discharge), x.tpa, x.insurer, fmtDate(x.claimCreated),
       x.claimedAmt, x.approvedAmt, x.copay, x.shortfall, x.discount, x.patientPaid,
@@ -61,12 +62,12 @@ export function exportClaimsWorkbook(global: GlobalData) {
       category(x.status),
       age,
       bucket(age),
-      dayDiff(x.admission, x.paymentDate),
+      dayDiff(x.docSubmit || x.discharge, x.paymentDate),
       { f: `IFERROR(H${r}/G${r},0)` },
       { f: `IFERROR(M${r}/H${r},0)` },
       { f: `IFERROR(M${r}/G${r},0)` },
-      { f: `MAX(0,G${r}-H${r}-J${r})` },
-      { f: `MAX(0,H${r}-M${r}-I${r}-N${r})` },
+      { f: `IF(V${r}="Denied",0,MAX(0,G${r}-H${r}-J${r}))` },
+      { f: `IF(O${r}="Settled",MAX(0,H${r}-M${r}-I${r}-N${r}),0)` },
     ]);
   });
 
@@ -123,7 +124,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
     ['Total Copay (₹)', global.totalCopay, `=SUM(Claims!I2:I${lastRow})`, 'Patient-borne share as per policy'],
     ['Total Discount (₹)', global.totalDiscount, `=SUM(Claims!K2:K${lastRow})`, 'Hospital concession / write-off'],
     ['Total TDS (₹)', global.totalTDS, `=SUM(Claims!N2:N${lastRow})`, 'Tax deducted at source by payer'],
-    ['Total Patient Paid (₹)', global.totalPatientPaid, `=SUM(Claims!L2:L${lastRow})`, 'Amount collected from patient (incl. copay)'],
+    ['Total Patient Paid (₹)', global.totalPatientCollected, `=SUMPRODUCT((Claims!L2:L${lastRow}>=Claims!I2:I${lastRow})*(Claims!L2:L${lastRow}>0)*Claims!L2:L${lastRow}+(1-(Claims!L2:L${lastRow}>=Claims!I2:I${lastRow})*(Claims!L2:L${lastRow}>0))*(Claims!L2:L${lastRow}+Claims!I2:I${lastRow}))`, 'Patient collection; copay counted once (if Patient Paid ≥ Copay it already includes copay)'],
     [],
     ['Approval Rate %', '', `=IFERROR(B4/B3,0)`, 'Total Approved ÷ Total Claimed'],
     ['Net Collection %', '', `=IFERROR(B5/B4,0)`, 'Total Settled ÷ Total Approved'],
@@ -195,7 +196,9 @@ export function exportClaimsWorkbook(global: GlobalData) {
     ['Status Category — Active / Pending', 'All other statuses (pre-auth in progress, query, etc.)'],
     ['Age (Days)', 'TODAY() − Admission Date'],
     ['AR Aging Bucket', '0-30, 31-60, 61-90, 91-180, 180+ days based on Age'],
-    ['TAT Adm→Payment', 'Payment Date − Admission Date (days)'],
+    ['Payer TAT', 'Payment Date − Doc Submission Date (fallback Discharge) in days'],
+    ['AR Ageing', 'Today − Doc Submission Date (fallback Discharge, then Admission)'],
+    ['Leakage', 'Mutually exclusive: Denied (full claimed) + Payer Deduction & Shortfall (non-denied) + Short-settled (Settled only)'],
     ['Approval %', 'Approved Amt ÷ Claimed Amt'],
     ['Collection %', 'Settled Amt ÷ Approved Amt'],
     ['Net Yield %', 'Settled Amt ÷ Claimed Amt (cash realised per ₹ billed)'],
@@ -223,10 +226,10 @@ export function exportClaimsWorkbook(global: GlobalData) {
     ['Overview', 'Total Billed', 'KPI Summary', 'B3', '=SUM(Claims!G2:G{last})', 'Gross claimed from payers'],
     ['Overview', 'Total Approved', 'KPI Summary', 'B4', '=SUM(Claims!H2:H{last})', 'Amount approved by payers'],
     ['Overview', 'Total Collected', 'KPI Summary', 'B5', '=SUM(Claims!M2:M{last})', 'Cash received from payers'],
-    ['Overview', 'Patient Paid (incl. Copay)', 'KPI Summary', 'B10', '=SUM(Claims!L2:L{last})+SUM(Claims!I2:I{last})', 'Patient Paid + Copay columns'],
+    ['Overview', 'Patient Paid (incl. Copay)', 'KPI Summary', 'B10', 'SUMPRODUCT: Patient Paid if ≥ Copay, else Patient Paid + Copay', 'Copay never double-counted'],
     ['Overview', 'Claim Approval Rate', 'KPI Summary', 'B12', '=IFERROR(B4/B3,0)', 'Approved ÷ Claimed'],
     ['Overview', 'Net Collection Rate', 'KPI Summary', 'B13', '=IFERROR(B5/B4,0)', 'Settled ÷ Approved'],
-    ['Overview', 'End-to-End TAT', 'Claims', 'Y2:Y{last}', '=Payment Date − Admission Date', 'Average of column Y for settled claims'],
+    ['Overview', 'Payer TAT', 'Claims', 'Y2:Y{last}', '=Payment Date − Doc Submit Date', 'Average of column Y for settled claims'],
     ['Overview', 'Denial Rate', 'Claims', 'V2:V{last}', '=COUNTIF(V2:V{last},"Denied") / COUNTA(V2:V{last})', 'Denied status category ÷ total'],
     ['Overview', 'Pending AR', 'Claims', 'V2:V{last}', '=SUMIF(V2:V{last},"Active / Pending",G2:G{last})', 'Sum claimed where status category = Active/Pending'],
     ['Overview', 'Claim Status Distribution', 'Claims', 'V2:V{last}', 'COUNTIF by Status Category', 'Pie chart of Status Category counts'],

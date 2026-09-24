@@ -1,9 +1,10 @@
+import { isPendingStatus } from '@/lib/rcm-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { DataTable } from './DataTable';
 import { SectionHeading } from './SectionHeading';
-import { fmt, fN, ddiff, sm, median, getBadgeType } from '@/lib/rcm-utils';
+import { fmt, fN, ddiff, sm, median, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, Legend,
@@ -33,13 +34,13 @@ export function DSOTab() {
   const periodDays = Math.max(1, Math.round((maxD.getTime() - minD.getTime()) / 86400000));
 
   // AR = pending value
-  const PENDING = (s: string) => !['Settled', 'Cancelled'].includes(s) && !s.toLowerCase().includes('denied');
+  const PENDING = isPendingStatus;
   const arVal = sm(d.filter(x => PENDING(x.status)).map(x => x.claimedAmt));
   const dso = totalClaimed ? (arVal / totalClaimed) * periodDays : 0;
 
   // Settled-only TAT for velocity
   const settled = d.filter(x => x.status === 'Settled');
-  const tats = settled.map(x => ddiff(x.admission, x.paymentDate)).filter((v): v is number => v !== null && v < 365);
+  const tats = settled.map(x => payerTat(x)).filter((v): v is number => v !== null);
   const avgTAT = tats.length ? tats.reduce((a, b) => a + b, 0) / tats.length : 0;
   const medTAT = median(tats);
 

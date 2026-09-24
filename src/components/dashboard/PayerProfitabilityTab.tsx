@@ -4,7 +4,7 @@ import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { DataTable } from './DataTable';
 import { SectionHeading } from './SectionHeading';
-import { fmt, fN, pct, avg, ddiff, sm, scoreColor } from '@/lib/rcm-utils';
+import { fmt, fN, pct, avg, ddiff, sm, scoreColor , payerTat } from '@/lib/rcm-utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   ScatterChart, Scatter, ZAxis,
@@ -37,7 +37,7 @@ export function PayerProfitabilityTab() {
       if (x.status.toLowerCase().includes('denied') || x.status === 'Cancelled') {
         g.denied++; g.denVal += x.claimedAmt;
       }
-      const t = ddiff(x.admission, x.paymentDate);
+      const t = payerTat(x);
       if (t !== null && t < 365) g.tats.push(t);
     });
     return Object.entries(m)

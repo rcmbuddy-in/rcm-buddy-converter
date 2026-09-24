@@ -1,3 +1,4 @@
+import { isPendingStatus } from '@/lib/rcm-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
@@ -11,8 +12,8 @@ export function ARTab() {
   if (!globalData) return null;
   const { data: d, n, ageBuckets, totalClaimed } = globalData;
 
-  const pending = d.filter(x => !['Settled', 'Claim Denied', 'Pre Auth Denied', 'Cancelled', 'Enhancement Denied', 'Discharge Denied'].includes(x.status));
-  const pendVal = sm(pending.map(x => x.claimedAmt));
+  const pending = d.filter(x => isPendingStatus(x.status));
+  const pendVal = globalData.pendingAR.val;
   const arToRev = pct(pendVal, totalClaimed);
 
   const ab = ageBuckets;

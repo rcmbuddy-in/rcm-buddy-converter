@@ -4,7 +4,9 @@ import { ChartCard, ChartGrid } from './ChartCard';
 import { SectionHeading } from './SectionHeading';
 import { HealthScoreCard, LeakageBanner } from './HealthScoreCard';
 import { computeHealthScore, getLeakageSummary } from '@/lib/insights-engine';
-import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType } from '@/lib/rcm-utils';
+import { isDeniedStatus } from '@/lib/rcm-data';
+import { ReconciliationPanel } from './ReconciliationPanel';
+import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart,
   PieChart, Pie, Cell, Legend, Line
@@ -19,13 +21,13 @@ export function OverviewTab() {
   const leakage = getLeakageSummary(globalData);
 
   const settled = d.filter(x => x.status === 'Settled');
-  const denied = d.filter(x => x.status.toLowerCase().includes('denied') || x.status === 'Cancelled');
-  const pending = d.filter(x => ['Processing', 'Claim in Progress', 'Pre Auth Initiated', 'Pre Auth Submitted to Payer', 'Pre Auth Query', 'Settlement Initiated', 'Discharge Approved', 'Claim Approved'].includes(x.status));
+  const denied = d.filter(x => isDeniedStatus(x.status));
   const approvalRate = pct(totalApproved, totalClaimed);
   const netCollRate = pct(totalSettled, totalApproved);
-  const tatVals = d.map(x => ddiff(x.admission, x.paymentDate)).filter((v): v is number => v !== null && v < 365);
+  const tatVals = d.map(x => payerTat(x)).filter((v): v is number => v !== null);
   const avgTAT = avg(tatVals);
-  const denialRate = pct(denied.length, n);
+  const nonCancelled = d.filter(x => x.status !== 'Cancelled').length;
+  const denialRate = pct(denied.length, nonCancelled);
 
   // Status distribution
   const statusMap: Record<string, number> = {};
@@ -85,13 +87,15 @@ export function OverviewTab() {
         <MetricCard label="Total Billed" value={fmt(totalClaimed)} subtitle="Gross claimed from payers" weight="Highest Weight" />
         <MetricCard label="Total Approved" value={fmt(totalApproved)} subtitle="Approved by payers" weight="High Weight" />
         <MetricCard label="Total Collected" value={fmt(totalSettled)} subtitle="Net settled by payers" />
-        <MetricCard label="Patient Paid" value={fmt(globalData.totalPatientPaid + globalData.totalCopay)} subtitle={`Incl. copay ${fmt(globalData.totalCopay)}`} />
+        <MetricCard label="Patient Paid" value={fmt(globalData.totalPatientCollected)} subtitle={`Copay ${fmt(globalData.totalCopay)} included, not double-counted`} />
         <MetricCard label="Claim Approval Rate" value={fN(approvalRate) + '%'} subtitle="Approved ÷ Billed" badge={{ type: getBadgeType(approvalRate, 75, 60), text: approvalRate > 75 ? 'Healthy' : approvalRate > 60 ? 'Watch' : 'Critical' }} weight="High Weight" />
         <MetricCard label="Net Collection Rate" value={fN(netCollRate) + '%'} subtitle="Settled ÷ Approved" badge={{ type: getBadgeType(netCollRate, 85, 70), text: netCollRate > 85 ? 'Strong' : netCollRate > 70 ? 'Average' : 'Weak' }} weight="High Weight" />
-        <MetricCard label="End-to-End TAT" value={fN(avgTAT) + ' days'} subtitle="Avg admission to payment" badge={{ type: getBadgeType(avgTAT, 30, 60, false), text: avgTAT < 30 ? 'Fast' : avgTAT < 60 ? 'Average' : 'Slow' }} weight="Medium Weight" />
-        <MetricCard label="Denial Rate" value={fN(denialRate) + '%'} subtitle={denied.length + ' denied/cancelled'} badge={{ type: getBadgeType(denialRate, 10, 20, false), text: denialRate < 10 ? 'Controlled' : 'High' }} weight="Medium Weight" />
-        <MetricCard label="Pending AR" value={fmt(sm(pending.map(x => x.claimedAmt)))} subtitle={pending.length + ' open claims'} />
+        <MetricCard label="Payer TAT" value={fN(avgTAT) + ' days'} subtitle="Avg doc submission → payment" badge={{ type: getBadgeType(avgTAT, 30, 60, false), text: avgTAT < 30 ? 'Fast' : avgTAT < 60 ? 'Average' : 'Slow' }} weight="Medium Weight" />
+        <MetricCard label="Denial Rate" value={fN(denialRate) + '%'} subtitle={denied.length + ' denied ÷ non-cancelled claims'} badge={{ type: getBadgeType(denialRate, 10, 20, false), text: denialRate < 10 ? 'Controlled' : 'High' }} weight="Medium Weight" />
+        <MetricCard label="Pending AR" value={fmt(globalData.pendingAR.val)} subtitle={globalData.pendingAR.cnt + ' open claims · aged from submission'} />
       </MetricGrid>
+
+      <ReconciliationPanel checks={globalData.reconciliation} />
 
       <ChartGrid>
         <ChartCard title="Claim Status Distribution" subtitle="Volume across all claim stages">
