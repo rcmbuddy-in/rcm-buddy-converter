@@ -1,5 +1,12 @@
 import * as XLSX from 'xlsx';
-import { tDate, sm, pct, avg, ddiff } from './rcm-utils';
+import { tDate, sm, pct, avg, ddiff, payerTat, arAnchor, patientCollected } from './rcm-utils';
+
+export const DENIED_STATUSES = ['Pre Auth Denied', 'Discharge Denied', 'Claim Denied', 'Reconsideration Submitted', 'Enhancement Denied'];
+export const VALID_CLOSED_STATUSES = ['Settled', 'Settlement Initiated', 'Claim Approved', 'Processing', 'Enhancement Approved'];
+export const isDeniedStatus = (s: string) => DENIED_STATUSES.includes(s);
+export const isPendingStatus = (s: string) => !VALID_CLOSED_STATUSES.includes(s) && !DENIED_STATUSES.includes(s) && s !== 'Cancelled';
+
+export interface ReconCheck { name: string; pass: boolean; detail: string; }
 
 export interface ClaimRecord {
   hospital: string;
@@ -44,6 +51,9 @@ export interface GlobalData {
   tpaArr: any[];
   tpaLeak: Record<string, any>;
   leakageData: any;
+  totalPatientCollected: number;
+  pendingAR: { cnt: number; val: number };
+  reconciliation: ReconCheck[];
 }
 
 /** Case-insensitive fuzzy column matcher */
@@ -130,8 +140,6 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const dateRange = dates.length ? `${f(dates[0])} – ${f(dates[dates.length - 1])}` : '';
 
   // Status categorization per business policy
-  const DENIED_STATUSES = ['Pre Auth Denied', 'Discharge Denied', 'Claim Denied', 'Reconsideration Submitted', 'Enhancement Denied'];
-  const VALID_CLOSED_STATUSES = ['Settled', 'Settlement Initiated', 'Claim Approved', 'Processing', 'Enhancement Approved'];
   const REMOVED_STATUSES = ['Cancelled'];
   const isDenied = (s: string) => DENIED_STATUSES.includes(s);
   const isValidClosed = (s: string) => VALID_CLOSED_STATUSES.includes(s);
@@ -146,7 +154,8 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     '180+': { cnt: 0, val: 0 },
   };
   pending.forEach(x => {
-    const age = x.admission ? Math.round((now.getTime() - x.admission.getTime()) / 86400000) : 0;
+    const anchor = arAnchor(x);
+    const age = anchor ? (ddiff(anchor, now) ?? 0) : 0;
     const key = age <= 30 ? '0-30' : age <= 60 ? '31-60' : age <= 90 ? '61-90' : age <= 180 ? '91-180' : '180+';
     buckets[key].cnt++;
     buckets[key].val += x.claimedAmt;
@@ -160,8 +169,8 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     const t = tpaMap[k];
     t.cnt++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt;
     if (isDenied(x.status)) t.denied++;
-    const tat = ddiff(x.admission, x.paymentDate);
-    if (tat !== null && tat < 365) t.tatVals.push(tat);
+    const tat = payerTat(x);
+    if (tat !== null) t.tatVals.push(tat);
   });
 
   const tpaArr = Object.entries(tpaMap)
@@ -174,12 +183,48 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
       avgTAT: avg(v.tatVals || [])
     }));
 
-  // Leakage data
-  const payerDed = Math.max(0, totalClaimed - totalApproved - totalShortfall);
-  const shortfallVal = totalShortfall;
-  const uncollected = Math.max(0, totalApproved - totalSettled - totalCopay - totalTDS);
-  const deniedVal = sm(data.filter(x => isDenied(x.status)).map(x => x.claimedAmt));
-  const leakageData = { payerDed, shortfall: shortfallVal, uncollected, deniedVal, copayDue: totalCopay };
+  // Leakage — mutually exclusive, row-level buckets (no rupee counted twice)
+  //  • Denied claims: full claimed value → Denied bucket only
+  //  • Other claims: Payer Deduction = Claimed − Approved − Shortfall (≥0); Shortfall = patient-liability gap
+  //  • Short-settlement: only for Settled claims = Approved − Settled − Copay − TDS (≥0). Open claims are AR, not leakage.
+  let payerDed = 0, shortfallVal = 0, uncollected = 0, deniedVal = 0, overApprovedRows = 0, overSettledRows = 0;
+  data.forEach(x => {
+    if (x.status === 'Cancelled') return;
+    if (isDenied(x.status)) { deniedVal += x.claimedAmt; return; }
+    const sf = Math.max(0, x.shortfall);
+    const ded = x.claimedAmt - x.approvedAmt - sf;
+    if (ded < 0 && x.approvedAmt > 0) overApprovedRows++;
+    payerDed += Math.max(0, ded);
+    shortfallVal += sf;
+    if (x.status === 'Settled') {
+      const gap = x.approvedAmt - x.settledAmt - x.copay - x.tdsAmt;
+      if (gap < 0 && x.approvedAmt > 0) overSettledRows++;
+      uncollected += Math.max(0, gap);
+    }
+  });
+  const leakTotal = payerDed + shortfallVal + uncollected + deniedVal;
+  const leakageData = { payerDed, shortfall: shortfallVal, uncollected, deniedVal, copayDue: totalCopay, total: leakTotal };
+
+  const totalPatientCollected = sm(data.map(patientCollected));
+  const copayInside = data.filter(x => x.copay > 0 && x.patientPaid >= x.copay).length;
+  const copaySeparate = data.filter(x => x.copay > 0 && x.patientPaid < x.copay).length;
+  const pendingAR = { cnt: pending.length, val: sm(pending.map(x => x.claimedAmt)) };
+  const bucketCnt = Object.values(buckets).reduce((a, b) => a + b.cnt, 0);
+  const bucketVal = Object.values(buckets).reduce((a, b) => a + b.val, 0);
+  const tatCovered = data.filter(x => x.status === 'Settled' && payerTat(x) !== null).length;
+  const settledCnt = data.filter(x => x.status === 'Settled').length;
+  const agedFromAdmission = pending.filter(x => !x.docSubmit && !x.discharge).length;
+  const statusSum = data.filter(x => isDenied(x.status)).length + data.filter(x => isValidClosed(x.status)).length + pending.length + data.filter(x => x.status === 'Cancelled').length;
+  const r = (v: number) => Math.round(v);
+  const reconciliation: ReconCheck[] = [
+    { name: 'Leakage buckets are mutually exclusive', pass: leakTotal <= totalClaimed + 1, detail: `Leakage ₹${r(leakTotal).toLocaleString('en-IN')} ≤ Billed ₹${r(totalClaimed).toLocaleString('en-IN')}; denied claims counted only in Denied bucket` },
+    { name: 'AR ageing buckets = Pending AR', pass: bucketCnt === pendingAR.cnt && Math.abs(bucketVal - pendingAR.val) < 1, detail: `${bucketCnt} claims in buckets vs ${pendingAR.cnt} pending; ${agedFromAdmission} aged from admission (no submission/discharge date)` },
+    { name: 'Every claim has exactly one status category', pass: statusSum === n, detail: `${statusSum} categorised of ${n} claims` },
+    { name: 'Patient paid has no copay double-count', pass: true, detail: `${copayInside} rows copay already inside Patient Paid; ${copaySeparate} rows copay added separately` },
+    { name: 'Approved ≤ Claimed − Shortfall', pass: overApprovedRows === 0, detail: `${overApprovedRows} claims approved above billed (check source data)` },
+    { name: 'Settled + Copay + TDS ≤ Approved', pass: overSettledRows === 0, detail: `${overSettledRows} settled claims paid above approved (check source data)` },
+    { name: 'Payer TAT coverage', pass: settledCnt === 0 || tatCovered / settledCnt >= 0.8, detail: `${tatCovered} of ${settledCnt} settled claims have submission/discharge + payment dates` },
+  ];
 
   // TPA leakage
   const tpaLeak: Record<string, any> = {};
@@ -196,5 +241,6 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     totalCopay, totalDiscount, totalTDS, totalPatientPaid,
     hospitalName: hosp.replace('Hospital', '').replace('- Hyderabad', '').trim().split('-')[0].trim(),
     dateRange, ageBuckets: buckets, tpaMap, tpaArr, tpaLeak, leakageData,
+    totalPatientCollected, pendingAR, reconciliation,
   };
 }

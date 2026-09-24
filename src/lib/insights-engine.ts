@@ -336,12 +336,12 @@ export function getDenialBreakdown(g: GlobalData): DenialBreakdown {
 export function getLeakageSummary(g: GlobalData): { total: number; breakdown: { label: string; value: number }[] } {
   const { totalClaimed, totalApproved, totalShortfall, totalCopay, totalTDS, totalSettled, leakageData } = g;
   return {
-    total: totalClaimed - totalSettled,
+    total: leakageData.total,
     breakdown: [
       { label: 'Payer Deductions', value: leakageData.payerDed },
-      { label: 'Shortfall', value: totalShortfall },
+      { label: 'Shortfall', value: leakageData.shortfall },
       { label: 'Denied Claims', value: leakageData.deniedVal },
-      { label: 'Uncollected AR', value: leakageData.uncollected },
+      { label: 'Short-settled', value: leakageData.uncollected },
     ],
   };
 }
