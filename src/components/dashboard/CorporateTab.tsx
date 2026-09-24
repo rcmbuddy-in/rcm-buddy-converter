@@ -5,7 +5,7 @@ import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { DataTable } from './DataTable';
 import { SectionHeading } from './SectionHeading';
-import { fmt, fN, pct, sm, avg, ddiff, shortP, R_PAL, MIX_PAL, getBadgeType } from '@/lib/rcm-utils';
+import { fmt, fN, pct, sm, avg, ddiff, shortP, R_PAL, MIX_PAL, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend, LineChart, Line, CartesianGrid
@@ -54,7 +54,7 @@ export function CorporateTab() {
   const totalApproved = sm(corpData.map(x => x.approvedAmt));
   const totalSettled = sm(corpData.map(x => x.settledAmt));
   const denied = corpData.filter(x => x.status.toLowerCase().includes('denied') || x.status === 'Cancelled');
-  const tatVals = corpData.map(x => ddiff(x.admission, x.paymentDate)).filter((v): v is number => v !== null && v < 365);
+  const tatVals = corpData.map(x => payerTat(x)).filter((v): v is number => v !== null);
 
   const approvalRate = pct(totalApproved, totalClaimed);
   const collRate = pct(totalSettled, totalApproved);
@@ -71,7 +71,7 @@ export function CorporateTab() {
     const p = corpMap[k];
     p.cnt++; p.claimed += x.claimedAmt; p.approved += x.approvedAmt; p.settled += x.settledAmt;
     if (x.status.toLowerCase().includes('denied') || x.status === 'Cancelled') p.denied++;
-    const tat = ddiff(x.admission, x.paymentDate);
+    const tat = payerTat(x);
     if (tat !== null && tat < 365) p.tatVals.push(tat);
   });
 

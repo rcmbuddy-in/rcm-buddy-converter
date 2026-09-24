@@ -3,7 +3,7 @@ import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { DataTable } from './DataTable';
 import { SectionHeading } from './SectionHeading';
-import { fmt, fN, ddiff, sm, median, getBadgeType } from '@/lib/rcm-utils';
+import { fmt, fN, ddiff, sm, median, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, Legend,
@@ -39,7 +39,7 @@ export function DSOTab() {
 
   // Settled-only TAT for velocity
   const settled = d.filter(x => x.status === 'Settled');
-  const tats = settled.map(x => ddiff(x.admission, x.paymentDate)).filter((v): v is number => v !== null && v < 365);
+  const tats = settled.map(x => payerTat(x)).filter((v): v is number => v !== null);
   const avgTAT = tats.length ? tats.reduce((a, b) => a + b, 0) / tats.length : 0;
   const medTAT = median(tats);
 

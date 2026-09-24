@@ -1,5 +1,5 @@
 import { ClaimRecord, GlobalData } from './rcm-data';
-import { sm, pct, avg, ddiff, fmt, fN } from './rcm-utils';
+import { sm, pct, avg, ddiff, fmt, fN , payerTat } from './rcm-utils';
 
 export type InsightSeverity = 'critical' | 'warning' | 'info' | 'good';
 
@@ -37,7 +37,7 @@ export function computeHealthScore(g: GlobalData): HealthScore {
   const arOver90 = (ageBuckets['91-180']?.val || 0) + (ageBuckets['180+']?.val || 0);
   const arTotal = Object.values(ageBuckets).reduce((a, b) => a + b.val, 0);
   const arHealth = arTotal ? 100 - pct(arOver90, arTotal) : 100;
-  const tatVals = data.map(x => ddiff(x.admission, x.paymentDate)).filter((v): v is number => v !== null && v < 365);
+  const tatVals = data.map(x => payerTat(x)).filter((v): v is number => v !== null);
   const avgTAT = avg(tatVals);
   const tatScore = avgTAT === 0 ? 70 : Math.max(0, Math.min(100, 100 - (avgTAT - 20) * 1.5));
 

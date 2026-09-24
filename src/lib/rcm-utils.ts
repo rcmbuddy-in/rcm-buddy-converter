@@ -136,3 +136,22 @@ export function score(val: number, goodThresh: number, badThresh: number, higher
 export function scoreColor(n: number): string {
   return n >= 75 ? '#15803D' : n >= 55 ? '#854D0E' : '#DC2626';
 }
+
+/** Payer TAT = document submission → payment (fallback: discharge → payment). Excludes hospital length of stay. */
+export function payerTat(x: { docSubmit: Date | null; discharge: Date | null; paymentDate: Date | null }): number | null {
+  const start = x.docSubmit || x.discharge;
+  const t = ddiff(start, x.paymentDate);
+  return t !== null && t < 365 ? t : null;
+}
+
+/** AR ageing anchor = claim submission → discharge → admission (first available). */
+export function arAnchor(x: { docSubmit: Date | null; discharge: Date | null; admission: Date | null }): Date | null {
+  return x.docSubmit || x.discharge || x.admission;
+}
+
+/** Patient collection without double-counting copay.
+ *  If Patient Paid ≥ Copay, copay is assumed already included in Patient Paid; otherwise they are separate and added. */
+export function patientCollected(x: { patientPaid: number; copay: number }): number {
+  const pp = x.patientPaid || 0, cp = x.copay || 0;
+  return pp >= cp && pp > 0 ? pp : pp + cp;
+}

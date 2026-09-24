@@ -4,7 +4,7 @@ import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { DataTable } from './DataTable';
 import { SectionHeading } from './SectionHeading';
-import { fmt, fN, pct, sm, avg, ddiff, getBadgeType } from '@/lib/rcm-utils';
+import { fmt, fN, pct, sm, avg, ddiff, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend, CartesianGrid
@@ -47,7 +47,7 @@ export function MoMTab() {
     b.approved += x.approvedAmt;
     b.settled += x.settledAmt;
     if (x.status.toLowerCase().includes('denied') || x.status === 'Cancelled') b.denied++;
-    const tat = ddiff(x.admission, x.paymentDate);
+    const tat = payerTat(x);
     if (tat !== null && tat < 365) b.tatVals.push(tat);
   });
 

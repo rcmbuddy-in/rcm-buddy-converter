@@ -4,7 +4,7 @@ import { ChartCard, ChartGrid } from './ChartCard';
 import { SectionHeading } from './SectionHeading';
 import { HealthScoreCard, LeakageBanner } from './HealthScoreCard';
 import { computeHealthScore, getLeakageSummary } from '@/lib/insights-engine';
-import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType } from '@/lib/rcm-utils';
+import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart,
   PieChart, Pie, Cell, Legend, Line
@@ -23,7 +23,7 @@ export function OverviewTab() {
   const pending = d.filter(x => ['Processing', 'Claim in Progress', 'Pre Auth Initiated', 'Pre Auth Submitted to Payer', 'Pre Auth Query', 'Settlement Initiated', 'Discharge Approved', 'Claim Approved'].includes(x.status));
   const approvalRate = pct(totalApproved, totalClaimed);
   const netCollRate = pct(totalSettled, totalApproved);
-  const tatVals = d.map(x => ddiff(x.admission, x.paymentDate)).filter((v): v is number => v !== null && v < 365);
+  const tatVals = d.map(x => payerTat(x)).filter((v): v is number => v !== null);
   const avgTAT = avg(tatVals);
   const denialRate = pct(denied.length, n);
 
