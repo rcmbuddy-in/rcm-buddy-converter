@@ -11,12 +11,12 @@ export function LeakageTab() {
   const { n, totalClaimed, totalSettled, totalDiscount, totalTDS, leakageData, tpaLeak } = globalData;
 
   const { payerDed, shortfall, uncollected, deniedVal } = leakageData;
-  const totalLeak = payerDed + shortfall + uncollected;
+  const totalLeak = leakageData.total; // buckets are mutually exclusive
 
   const items = [
     { type: 'Payer Deductions', amt: payerDed, note: 'Approved vs claimed gap — negotiation opportunity', rec: true },
-    { type: 'Policy Shortfall', amt: shortfall, note: 'Sum insured exhausted — patient liability', rec: false },
-    { type: 'Uncollected Approved', amt: uncollected, note: 'Approved but not yet settled by payer', rec: true },
+    { type: 'Policy Shortfall', amt: shortfall, note: 'Sum insured exhausted — patient liability (excl. denied)', rec: false },
+    { type: 'Short-settled', amt: uncollected, note: 'Settled claims paid below approved (after copay & TDS)', rec: true },
     { type: 'Denied Claims Value', amt: deniedVal, note: 'Appeal & reconsideration potential', rec: true },
   ];
   const maxAmt = Math.max(...items.map(i => i.amt));
@@ -25,7 +25,7 @@ export function LeakageTab() {
   const leakPieData = [
     { name: 'Payer Deductions', value: payerDed },
     { name: 'Policy Shortfall', value: shortfall },
-    { name: 'Uncollected Approved', value: uncollected },
+    { name: 'Short-settled', value: uncollected },
     { name: 'Denied Claims', value: deniedVal },
   ];
   const leakColors = ['#9B1C1C', '#DC2626', '#EF4444', '#D97706'];

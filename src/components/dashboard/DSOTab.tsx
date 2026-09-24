@@ -1,3 +1,4 @@
+import { isPendingStatus } from '@/lib/rcm-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
@@ -33,7 +34,7 @@ export function DSOTab() {
   const periodDays = Math.max(1, Math.round((maxD.getTime() - minD.getTime()) / 86400000));
 
   // AR = pending value
-  const PENDING = (s: string) => !['Settled', 'Cancelled'].includes(s) && !s.toLowerCase().includes('denied');
+  const PENDING = isPendingStatus;
   const arVal = sm(d.filter(x => PENDING(x.status)).map(x => x.claimedAmt));
   const dso = totalClaimed ? (arVal / totalClaimed) * periodDays : 0;
 
