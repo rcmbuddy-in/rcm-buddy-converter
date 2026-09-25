@@ -14,6 +14,8 @@ import logo from '@/assets/rcm-buddy-logo.png';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'variance', label: '⇅ Variance' },
+  { id: 'audit', label: '🔍 Formula Audit' },
   { id: 'financial', label: 'Financial KPIs' },
   { id: 'cashflow', label: '💰 Cash Flow 90d' },
   { id: 'dso', label: '⚡ DSO & Velocity' },
