@@ -27,6 +27,7 @@ interface DashboardContextType {
   closeDQModal: () => void;
   proceedAfterDQ: () => void;
   bypassDQ: () => void;
+  allRecords: ClaimRecord[];
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -181,6 +182,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       closeDQModal,
       proceedAfterDQ,
       bypassDQ,
+      allRecords,
     }}>
       {children}
     </DashboardContext.Provider>
