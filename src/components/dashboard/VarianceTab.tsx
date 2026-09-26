@@ -84,7 +84,7 @@ export function VarianceTab() {
                     <td key={f} className="p-3" onClick={e => editing && e.stopPropagation()}>
                       {editing ? <Input type="number" className="h-8 w-24" value={targets[r.k.id]?.[f] ?? 0}
                         onChange={e => setTargets(t => ({ ...t, [r.k.id]: { ...t[r.k.id], [f]: +e.target.value } }))} />
-                        : r[f] ? <span className={f === 'target' && vsT !== null ? (vsT ? 'text-[hsl(var(--success,142_71%_35%))]' : 'text-destructive') : 'text-muted-foreground'}>{fmtKpi(r.k.kind, r[f])}</span> : <span className="text-muted-foreground">—</span>}
+                        : r[f] ? <span className={f === 'target' && vsT !== null ? (vsT ? 'text-primary font-semibold' : 'text-destructive') : 'text-muted-foreground'}>{fmtKpi(r.k.kind, r[f])}</span> : <span className="text-muted-foreground">—</span>}
                     </td>
                   ))}
                   <td className="p-3 text-xs text-muted-foreground">{r.drv[0] ? r.drv[0].name : '—'}</td>
