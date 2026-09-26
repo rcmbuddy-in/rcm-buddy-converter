@@ -194,23 +194,28 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const tpaMap: Record<string, any> = {};
   data.forEach(x => {
     const k = x.tpa;
-    if (!tpaMap[k]) tpaMap[k] = { cnc: 0, cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [] as number[] };
+    if (!tpaMap[k]) tpaMap[k] = { cnc: 0, cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [] as number[], patients: new Set<string>(), uniquePatients: 0 };
     const t = tpaMap[k];
     t.cnt++; if (x.status === 'Cancelled') t.cnc++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt;
-    if (isDenied(x.status)) t.denied++;
+    if (isDeniedClaim(x)) t.denied++;
+    const pk = patientKey(x);
+    if (pk) t.patients.add(pk);
     const tat = payerTat(x);
     if (tat !== null) t.tatVals.push(tat);
   });
+  Object.values(tpaMap).forEach((t: any) => { t.uniquePatients = t.patients.size; });
 
   const tpaArr = Object.entries(tpaMap)
     .filter(e => e[1].cnt >= 15)
     .map(([k, v]) => ({
       k, v,
+      uniquePatients: v.uniquePatients,
       approvalRate: pct(v.approved, v.claimed),
       collRate: pct(v.settled, v.approved),
       denialRate: pct(v.denied, v.cnt - v.cnc),
       avgTAT: avg(v.tatVals || [])
-    }));
+    }))
+    .sort((a, b) => (b.uniquePatients - a.uniquePatients) || (b.v.claimed - a.v.claimed));
 
   // Leakage — mutually exclusive, row-level buckets (no rupee counted twice)
   //  • Denied claims: full claimed value → Denied bucket only
