@@ -1,3 +1,4 @@
+import { isDeniedStatus } from '@/lib/rcm-data';
 import { useState, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
@@ -34,7 +35,7 @@ export function PayerProfitabilityTab() {
       if (!m[k]) m[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, denVal: 0, tats: [] };
       const g = m[k];
       g.cnt++; g.claimed += x.claimedAmt; g.approved += x.approvedAmt; g.settled += x.settledAmt;
-      if (x.status.toLowerCase().includes('denied') || x.status === 'Cancelled') {
+      if (isDeniedStatus(x.status)) {
         g.denied++; g.denVal += x.claimedAmt;
       }
       const t = payerTat(x);
@@ -43,12 +44,12 @@ export function PayerProfitabilityTab() {
     return Object.entries(m)
       .filter(([, v]) => v.cnt >= 10)
       .map(([k, v]) => {
-        const deductionCost = Math.max(0, v.claimed - v.approved);
+        const deductionCost = Math.max(0, v.claimed - v.approved - v.denVal);
         const denialCost = v.denVal;
         const avgTAT = avg(v.tats);
         const tatCarryCost = (avgTAT / 365) * coc * v.settled;
         const netMarginAbs = v.settled - tatCarryCost; // approximate net cash retained
-        const netMarginPct = pct(v.settled - tatCarryCost - deductionCost - denialCost, v.claimed);
+        const netMarginPct = pct(v.settled - tatCarryCost, v.claimed);
         const collectionEfficiency = pct(v.settled, v.claimed);
         return {
           k, ...v, deductionCost, denialCost, avgTAT, tatCarryCost,
@@ -65,7 +66,7 @@ export function PayerProfitabilityTab() {
   const totalDeduction = sm(groups.map(g => g.deductionCost));
   const totalDenial = sm(groups.map(g => g.denialCost));
   const totalTatCost = sm(groups.map(g => g.tatCarryCost));
-  const overallMargin = pct(totalSettled - totalTatCost - totalDeduction - totalDenial, totalClaimed);
+  const overallMargin = pct(totalSettled - totalTatCost, totalClaimed);
 
   const top = [...groups].sort((a, b) => b.netMarginPct - a.netMarginPct).slice(0, 8);
   const bottom = [...groups].sort((a, b) => a.netMarginPct - b.netMarginPct).slice(0, 8);

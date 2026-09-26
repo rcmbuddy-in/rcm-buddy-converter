@@ -1,3 +1,4 @@
+import { isDeniedStatus } from '@/lib/rcm-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
@@ -18,10 +19,10 @@ export function DenialTab() {
   const paTotal = d.filter(x => x.status.startsWith('Pre Auth') || x.status.startsWith('Discharge') || x.status.startsWith('Enhancement'));
   const claimDenied = d.filter(x => x.status === 'Claim Denied');
   const cancelled = d.filter(x => x.status === 'Cancelled');
-  const allDenied = d.filter(x => x.status.toLowerCase().includes('denied') || x.status === 'Cancelled');
+  const allDenied = d.filter(x => isDeniedStatus(x.status));
 
   const paDenRate = pct(paDenied.length, paTotal.length);
-  const overallDR = pct(allDenied.length, n);
+  const overallDR = pct(allDenied.length, n - cancelled.length);
   const deniedVal = sm(allDenied.map(x => x.claimedAmt));
 
   const breakdown = getDenialBreakdown(globalData);

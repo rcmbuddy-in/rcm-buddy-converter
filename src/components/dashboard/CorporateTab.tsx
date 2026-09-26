@@ -1,3 +1,4 @@
+import { isDeniedStatus } from '@/lib/rcm-data';
 import { useState, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useChartPrefs } from '@/contexts/ChartPrefsContext';
@@ -53,24 +54,24 @@ export function CorporateTab() {
   const totalClaimed = sm(corpData.map(x => x.claimedAmt));
   const totalApproved = sm(corpData.map(x => x.approvedAmt));
   const totalSettled = sm(corpData.map(x => x.settledAmt));
-  const denied = corpData.filter(x => x.status.toLowerCase().includes('denied') || x.status === 'Cancelled');
+  const denied = corpData.filter(x => isDeniedStatus(x.status));
   const tatVals = corpData.map(x => payerTat(x)).filter((v): v is number => v !== null);
 
   const approvalRate = pct(totalApproved, totalClaimed);
   const collRate = pct(totalSettled, totalApproved);
-  const denialRate = pct(denied.length, n);
+  const denialRate = pct(denied.length, corpData.filter(x => x.status !== 'Cancelled').length);
   const avgTAT = avg(tatVals);
   const avgClaim = n > 0 ? totalClaimed / n : 0;
   const corpShare = pct(n, globalData.allData.length);
 
   // Group by Policy Holder Name (corporate name)
-  const corpMap: Record<string, { cnt: number; claimed: number; approved: number; settled: number; denied: number; tatVals: number[]; insurer: string }> = {};
+  const corpMap: Record<string, { cancelled?: number; cnt: number; claimed: number; approved: number; settled: number; denied: number; tatVals: number[]; insurer: string }> = {};
   corpData.forEach(x => {
     const k = x.policyHolder;
     if (!corpMap[k]) corpMap[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], insurer: x.insurer };
     const p = corpMap[k];
-    p.cnt++; p.claimed += x.claimedAmt; p.approved += x.approvedAmt; p.settled += x.settledAmt;
-    if (x.status.toLowerCase().includes('denied') || x.status === 'Cancelled') p.denied++;
+    p.cnt++; if (x.status === 'Cancelled') p.cancelled = (p.cancelled || 0) + 1; p.claimed += x.claimedAmt; p.approved += x.approvedAmt; p.settled += x.settledAmt;
+    if (isDeniedStatus(x.status)) p.denied++;
     const tat = payerTat(x);
     if (tat !== null && tat < 365) p.tatVals.push(tat);
   });
@@ -178,7 +179,7 @@ export function CorporateTab() {
           rows={corpArr.slice(0, 20).map(([k, v]) => {
             const aR = pct(v.approved, v.claimed);
             const cR = pct(v.settled, v.approved);
-            const dR = pct(v.denied, v.cnt);
+            const dR = pct(v.denied, v.cnt - (v.cancelled || 0));
             const t = avg(v.tatVals);
             return [
               k,

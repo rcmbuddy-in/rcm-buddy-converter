@@ -33,7 +33,7 @@ export function computeHealthScore(g: GlobalData): HealthScore {
   const approvalRate = pct(totalApproved, totalClaimed);
   const collRate = pct(totalSettled, totalApproved);
   const denied = data.filter(x => isDenied(x.status));
-  const denialRate = pct(denied.length, data.length);
+  const denialRate = pct(denied.length, data.filter(x => x.status !== 'Cancelled').length);
   const arOver90 = (ageBuckets['91-180']?.val || 0) + (ageBuckets['180+']?.val || 0);
   const arTotal = Object.values(ageBuckets).reduce((a, b) => a + b.val, 0);
   const arHealth = arTotal ? 100 - pct(arOver90, arTotal) : 100;
