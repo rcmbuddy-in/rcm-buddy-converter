@@ -6,6 +6,30 @@ export const VALID_CLOSED_STATUSES = ['Settled', 'Settlement Initiated', 'Claim 
 export const isDeniedStatus = (s: string) => DENIED_STATUSES.includes(s);
 export const isPendingStatus = (s: string) => !VALID_CLOSED_STATUSES.includes(s) && !DENIED_STATUSES.includes(s) && s !== 'Cancelled';
 
+/** A claim counts as denied when its status is a denial OR nothing was approved (and it isn't cancelled). */
+export const isDeniedClaim = (x: { status: string; approvedAmt: number; settledAmt: number }) =>
+  x.status !== 'Cancelled' && (isDeniedStatus(x.status) || (x.approvedAmt <= 0 && x.settledAmt <= 0));
+
+/** Outstanding claims: still open AND something was approved. Zero-approval claims are denials, not AR. */
+export const isPendingClaim = (x: { status: string; approvedAmt: number; settledAmt: number }) =>
+  isPendingStatus(x.status) && !isDeniedClaim(x) && x.approvedAmt > 0;
+
+/** Receivable balance is the approved amount still to be collected from the payer. */
+export const arOutstanding = (x: { approvedAmt: number; settledAmt: number; tdsAmt: number; copay: number }) =>
+  Math.max(0, x.approvedAmt - x.settledAmt - x.tdsAmt - x.copay);
+
+/** Unique-patient key for ranking payers/corporates. */
+export const patientKey = (x: ClaimRecord) =>
+  (x.patientId || x.patientName || '').trim().toLowerCase() ||
+  `${(x.patientName || '').trim().toLowerCase()}|${x.admission ? x.admission.toISOString().slice(0, 10) : ''}`;
+
+/** Count distinct patients in a set of claims. */
+export const uniquePatients = (rows: ClaimRecord[]) => {
+  const s = new Set<string>();
+  rows.forEach(r => { const k = patientKey(r); if (k) s.add(k); });
+  return s.size;
+};
+
 export interface ReconCheck { name: string; pass: boolean; detail: string; }
 
 export interface ClaimRecord {
@@ -30,6 +54,8 @@ export interface ClaimRecord {
   diagnosis: string;
   policyType: string;
   policyHolder: string;
+  patientId: string;
+  patientName: string;
 }
 
 export interface GlobalData {
@@ -113,6 +139,8 @@ export function parseExcelFile(buffer: ArrayBuffer): ClaimRecord[] {
     diagnosis: col(r, 'Diagnosis', 'Diagnosis Name', 'Disease') || '',
     policyType: col(r, 'Policy Type (Base/Top-up)', 'Policy Type', 'PolicyType') || '',
     policyHolder: col(r, 'Policy Holder Name', 'PolicyHolderName', 'Policy Holder', 'Corporate Name', 'Company Name', 'Group Name', 'Employer Name') || '',
+    patientId: String(col(r, 'IP No', 'IP Number', 'IPNo', 'IPNumber', 'Inpatient No', 'UHID', 'MRN', 'Patient ID', 'PatientId') || ''),
+    patientName: String(col(r, 'Patient Name', 'PatientName', 'Patient') || ''),
   }));
 }
 
@@ -143,8 +171,9 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const REMOVED_STATUSES = ['Cancelled'];
   const isDenied = (s: string) => DENIED_STATUSES.includes(s);
   const isValidClosed = (s: string) => VALID_CLOSED_STATUSES.includes(s);
-  // Age buckets for AR — pending = active claims (not settled/valid, not denied, not cancelled)
-  const pending = data.filter(x => !isValidClosed(x.status) && !isDenied(x.status) && !REMOVED_STATUSES.includes(x.status));
+  // Age buckets for AR — pending = open claims with an approved amount still to collect.
+  // Zero-approval claims are denials, never receivables.
+  const pending = data.filter(x => isPendingClaim(x));
   const now = new Date();
   const buckets: Record<string, { cnt: number; val: number }> = {
     '0-30': { cnt: 0, val: 0 },
@@ -158,30 +187,35 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     const age = anchor ? (ddiff(anchor, now) ?? 0) : 0;
     const key = age <= 30 ? '0-30' : age <= 60 ? '31-60' : age <= 90 ? '61-90' : age <= 180 ? '91-180' : '180+';
     buckets[key].cnt++;
-    buckets[key].val += x.claimedAmt;
+    buckets[key].val += arOutstanding(x);
   });
 
   // TPA map for payer tab
   const tpaMap: Record<string, any> = {};
   data.forEach(x => {
     const k = x.tpa;
-    if (!tpaMap[k]) tpaMap[k] = { cnc: 0, cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [] as number[] };
+    if (!tpaMap[k]) tpaMap[k] = { cnc: 0, cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [] as number[], patients: new Set<string>(), uniquePatients: 0 };
     const t = tpaMap[k];
     t.cnt++; if (x.status === 'Cancelled') t.cnc++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt;
-    if (isDenied(x.status)) t.denied++;
+    if (isDeniedClaim(x)) t.denied++;
+    const pk = patientKey(x);
+    if (pk) t.patients.add(pk);
     const tat = payerTat(x);
     if (tat !== null) t.tatVals.push(tat);
   });
+  Object.values(tpaMap).forEach((t: any) => { t.uniquePatients = t.patients.size; });
 
   const tpaArr = Object.entries(tpaMap)
     .filter(e => e[1].cnt >= 15)
     .map(([k, v]) => ({
       k, v,
+      uniquePatients: v.uniquePatients,
       approvalRate: pct(v.approved, v.claimed),
       collRate: pct(v.settled, v.approved),
       denialRate: pct(v.denied, v.cnt - v.cnc),
       avgTAT: avg(v.tatVals || [])
-    }));
+    }))
+    .sort((a, b) => (b.uniquePatients - a.uniquePatients) || (b.v.claimed - a.v.claimed));
 
   // Leakage — mutually exclusive, row-level buckets (no rupee counted twice)
   //  • Denied claims: full claimed value → Denied bucket only
