@@ -165,9 +165,9 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const tpaMap: Record<string, any> = {};
   data.forEach(x => {
     const k = x.tpa;
-    if (!tpaMap[k]) tpaMap[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [] as number[] };
+    if (!tpaMap[k]) tpaMap[k] = { cnc: 0, cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [] as number[] };
     const t = tpaMap[k];
-    t.cnt++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt;
+    t.cnt++; if (x.status === 'Cancelled') t.cnc++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt;
     if (isDenied(x.status)) t.denied++;
     const tat = payerTat(x);
     if (tat !== null) t.tatVals.push(tat);
@@ -179,7 +179,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
       k, v,
       approvalRate: pct(v.approved, v.claimed),
       collRate: pct(v.settled, v.approved),
-      denialRate: pct(v.denied, v.cnt),
+      denialRate: pct(v.denied, v.cnt - v.cnc),
       avgTAT: avg(v.tatVals || [])
     }));
 
@@ -232,7 +232,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     const k = x.tpa;
     if (!tpaLeak[k]) tpaLeak[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, shortfall: 0, denied: 0, denVal: 0 };
     const t = tpaLeak[k];
-    t.cnt++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt; t.shortfall += x.shortfall;
+    t.cnt++; if (x.status === 'Cancelled') t.cnc++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt; t.shortfall += x.shortfall;
     if (isDenied(x.status)) { t.denied++; t.denVal += x.claimedAmt; }
   });
 

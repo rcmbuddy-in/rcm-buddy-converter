@@ -1,3 +1,4 @@
+import { isDeniedStatus } from '@/lib/rcm-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { MetricCard, MetricGrid } from './MetricCard';
@@ -42,11 +43,11 @@ export function MoMTab() {
       };
     }
     const b = map[key];
-    b.cnt++;
+    b.cnt++; if (x.status === 'Cancelled') (b as any).cancelled = ((b as any).cancelled || 0) + 1;
     b.claimed += x.claimedAmt;
     b.approved += x.approvedAmt;
     b.settled += x.settledAmt;
-    if (x.status.toLowerCase().includes('denied') || x.status === 'Cancelled') b.denied++;
+    if (isDeniedStatus(x.status)) b.denied++;
     const tat = payerTat(x);
     if (tat !== null && tat < 365) b.tatVals.push(tat);
   });
@@ -66,7 +67,7 @@ export function MoMTab() {
     const prev = i > 0 ? months[i - 1] : null;
     const approvalRate = pct(m.approved, m.claimed);
     const collRate = pct(m.settled, m.approved);
-    const denialRate = pct(m.denied, m.cnt);
+    const denialRate = pct(m.denied, m.cnt - ((m as any).cancelled || 0));
     const avgTAT = avg(m.tatVals);
     return {
       label: m.label,

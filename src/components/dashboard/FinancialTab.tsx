@@ -18,12 +18,12 @@ export function FinancialTab() {
   const ncR = pct(totalSettled, totalApproved);
   const sfP = pct(totalShortfall, totalClaimed);
   const discP = pct(totalDiscount, totalClaimed);
-  const tdsP = pct(totalTDS, totalSettled);
+  const tdsP = pct(totalTDS, totalSettled + totalTDS);
   const copP = pct(totalCopay, totalClaimed);
   const avgClaim = totalClaimed / n;
 
   // EBITDA-impact proxy: net realised after deductions, copay, TDS
-  const ebitdaProxy = totalSettled - totalTDS;
+  const ebitdaProxy = totalSettled + totalTDS; // TDS is tax credit, recoverable — not a loss
   const grossLeak = totalClaimed - totalApproved;
   const netLeak = totalClaimed - totalSettled;
   const insights = getFinancialInsights(globalData);
@@ -100,7 +100,7 @@ export function FinancialTab() {
       <MetricGrid>
         <MetricCard label="Gross Billed" value={fmt(totalClaimed)} subtitle="Top of revenue funnel" highlighted />
         <MetricCard label="Net Collected" value={fmt(totalSettled)} subtitle={fN(pct(totalSettled, totalClaimed)) + '% of gross'} />
-        <MetricCard label="EBITDA Impact (proxy)" value={fmt(ebitdaProxy)} subtitle="Net settled minus TDS" badge={{ type: getBadgeType(pct(ebitdaProxy, totalClaimed), 70, 55), text: fN(pct(ebitdaProxy, totalClaimed)) + '% yield' }} />
+        <MetricCard label="Gross Payer Realisation" value={fmt(ebitdaProxy)} subtitle="Settled + TDS credit ÷ billed" badge={{ type: getBadgeType(pct(ebitdaProxy, totalClaimed), 70, 55), text: fN(pct(ebitdaProxy, totalClaimed)) + '% yield' }} />
         <MetricCard label="Gross→Net Leakage" value={fmt(netLeak)} subtitle={fN(pct(netLeak, totalClaimed)) + '% of billed lost'} badge={{ type: 'warning', text: 'Track' }} />
         <MetricCard label="Approval Rate" value={fN(apR) + '%'} subtitle="Approved ÷ Billed" badge={{ type: getBadgeType(apR, 75, 60), text: fN(apR) + '%' }} />
         <MetricCard label="Payer Deduction %" value={fN(dedP) + '%'} subtitle={fmt(grossLeak) + ' deducted by payers'} />
