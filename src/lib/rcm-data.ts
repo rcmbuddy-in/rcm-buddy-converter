@@ -139,6 +139,8 @@ export function parseExcelFile(buffer: ArrayBuffer): ClaimRecord[] {
     diagnosis: col(r, 'Diagnosis', 'Diagnosis Name', 'Disease') || '',
     policyType: col(r, 'Policy Type (Base/Top-up)', 'Policy Type', 'PolicyType') || '',
     policyHolder: col(r, 'Policy Holder Name', 'PolicyHolderName', 'Policy Holder', 'Corporate Name', 'Company Name', 'Group Name', 'Employer Name') || '',
+    patientId: String(col(r, 'IP No', 'IP Number', 'IPNo', 'IPNumber', 'Inpatient No', 'UHID', 'MRN', 'Patient ID', 'PatientId') || ''),
+    patientName: String(col(r, 'Patient Name', 'PatientName', 'Patient') || ''),
   }));
 }
 
