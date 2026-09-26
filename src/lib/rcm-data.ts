@@ -54,6 +54,8 @@ export interface ClaimRecord {
   diagnosis: string;
   policyType: string;
   policyHolder: string;
+  patientId: string;
+  patientName: string;
 }
 
 export interface GlobalData {
