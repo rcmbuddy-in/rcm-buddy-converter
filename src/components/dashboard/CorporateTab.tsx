@@ -65,7 +65,7 @@ export function CorporateTab() {
   const corpShare = pct(n, globalData.allData.length);
 
   // Group by Policy Holder Name (corporate name)
-  const corpMap: Record<string, { cnt: number; claimed: number; approved: number; settled: number; denied: number; tatVals: number[]; insurer: string }> = {};
+  const corpMap: Record<string, { cancelled?: number; cnt: number; claimed: number; approved: number; settled: number; denied: number; tatVals: number[]; insurer: string }> = {};
   corpData.forEach(x => {
     const k = x.policyHolder;
     if (!corpMap[k]) corpMap[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], insurer: x.insurer };
