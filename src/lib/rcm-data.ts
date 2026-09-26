@@ -6,6 +6,30 @@ export const VALID_CLOSED_STATUSES = ['Settled', 'Settlement Initiated', 'Claim 
 export const isDeniedStatus = (s: string) => DENIED_STATUSES.includes(s);
 export const isPendingStatus = (s: string) => !VALID_CLOSED_STATUSES.includes(s) && !DENIED_STATUSES.includes(s) && s !== 'Cancelled';
 
+/** A claim counts as denied when its status is a denial OR nothing was approved (and it isn't cancelled). */
+export const isDeniedClaim = (x: { status: string; approvedAmt: number; settledAmt: number }) =>
+  x.status !== 'Cancelled' && (isDeniedStatus(x.status) || (x.approvedAmt <= 0 && x.settledAmt <= 0));
+
+/** Outstanding claims: still open AND something was approved. Zero-approval claims are denials, not AR. */
+export const isPendingClaim = (x: { status: string; approvedAmt: number; settledAmt: number }) =>
+  isPendingStatus(x.status) && !isDeniedClaim(x) && x.approvedAmt > 0;
+
+/** Receivable balance is the approved amount still to be collected from the payer. */
+export const arOutstanding = (x: { approvedAmt: number; settledAmt: number; tdsAmt: number; copay: number }) =>
+  Math.max(0, x.approvedAmt - x.settledAmt - x.tdsAmt - x.copay);
+
+/** Unique-patient key for ranking payers/corporates. */
+export const patientKey = (x: ClaimRecord) =>
+  (x.patientId || x.patientName || '').trim().toLowerCase() ||
+  `${(x.patientName || '').trim().toLowerCase()}|${x.admission ? x.admission.toISOString().slice(0, 10) : ''}`;
+
+/** Count distinct patients in a set of claims. */
+export const uniquePatients = (rows: ClaimRecord[]) => {
+  const s = new Set<string>();
+  rows.forEach(r => { const k = patientKey(r); if (k) s.add(k); });
+  return s.size;
+};
+
 export interface ReconCheck { name: string; pass: boolean; detail: string; }
 
 export interface ClaimRecord {
