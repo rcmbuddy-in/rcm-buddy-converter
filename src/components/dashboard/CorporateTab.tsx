@@ -59,7 +59,7 @@ export function CorporateTab() {
 
   const approvalRate = pct(totalApproved, totalClaimed);
   const collRate = pct(totalSettled, totalApproved);
-  const denialRate = pct(denied.length, n);
+  const denialRate = pct(denied.length, corpData.filter(x => x.status !== 'Cancelled').length);
   const avgTAT = avg(tatVals);
   const avgClaim = n > 0 ? totalClaimed / n : 0;
   const corpShare = pct(n, globalData.allData.length);
