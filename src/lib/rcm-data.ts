@@ -187,7 +187,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     const age = anchor ? (ddiff(anchor, now) ?? 0) : 0;
     const key = age <= 30 ? '0-30' : age <= 60 ? '31-60' : age <= 90 ? '61-90' : age <= 180 ? '91-180' : '180+';
     buckets[key].cnt++;
-    buckets[key].val += x.claimedAmt;
+    buckets[key].val += arOutstanding(x);
   });
 
   // TPA map for payer tab
