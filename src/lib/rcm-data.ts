@@ -171,8 +171,9 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const REMOVED_STATUSES = ['Cancelled'];
   const isDenied = (s: string) => DENIED_STATUSES.includes(s);
   const isValidClosed = (s: string) => VALID_CLOSED_STATUSES.includes(s);
-  // Age buckets for AR — pending = active claims (not settled/valid, not denied, not cancelled)
-  const pending = data.filter(x => !isValidClosed(x.status) && !isDenied(x.status) && !REMOVED_STATUSES.includes(x.status));
+  // Age buckets for AR — pending = open claims with an approved amount still to collect.
+  // Zero-approval claims are denials, never receivables.
+  const pending = data.filter(x => isPendingClaim(x));
   const now = new Date();
   const buckets: Record<string, { cnt: number; val: number }> = {
     '0-30': { cnt: 0, val: 0 },
