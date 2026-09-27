@@ -242,7 +242,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const totalPatientCollected = sm(data.map(patientCollected));
   const copayInside = data.filter(x => x.copay > 0 && x.patientPaid >= x.copay).length;
   const copaySeparate = data.filter(x => x.copay > 0 && x.patientPaid < x.copay).length;
-  const pendingAR = { cnt: pending.length, val: sm(pending.map(x => x.claimedAmt)) };
+  const pendingAR = { cnt: pending.length, val: sm(pending.map(arOutstanding)) };
   const bucketCnt = Object.values(buckets).reduce((a, b) => a + b.cnt, 0);
   const bucketVal = Object.values(buckets).reduce((a, b) => a + b.val, 0);
   const tatCovered = data.filter(x => x.status === 'Settled' && payerTat(x) !== null).length;
