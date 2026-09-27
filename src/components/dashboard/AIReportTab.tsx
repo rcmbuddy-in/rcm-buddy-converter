@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { SectionHeading } from './SectionHeading';
 import { fmt, fN, pct, avg, ddiff, sm, shortP, score, scoreColor } from '@/lib/rcm-utils';
+import { isPendingClaim, isDeniedClaim, arOutstanding } from '@/lib/rcm-data';
 
 export function AIReportTab() {
   const { globalData } = useDashboard();
