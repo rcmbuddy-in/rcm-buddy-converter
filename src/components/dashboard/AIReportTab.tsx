@@ -29,7 +29,7 @@ export function AIReportTab() {
     const avgSub = avg(d.map(x => ddiff(x.admission, x.docSubmit)).filter((v): v is number => v !== null && v < 365));
     const avgPay = avg(d.map(x => ddiff(x.docSubmit, x.paymentDate)).filter((v): v is number => v !== null && v < 365));
 
-    const pendVal = sm(pending.map(x => x.claimedAmt));
+    const pendVal = sm(pending.map(arOutstanding));
     const aged180 = ageBuckets['180+'] || { cnt: 0, val: 0 };
     const aged90 = ageBuckets['91-180'] || { cnt: 0, val: 0 };
 
