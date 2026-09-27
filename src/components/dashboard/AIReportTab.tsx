@@ -15,7 +15,7 @@ export function AIReportTab() {
     const { n, totalClaimed, totalApproved, totalSettled, totalShortfall, totalCopay, totalDiscount, totalTDS, tpaArr, ageBuckets, leakageData } = globalData!;
 
     const pending = d.filter(x => isPendingClaim(x));
-    const denied = d.filter(x => x.status.toLowerCase().includes('denied') || x.status === 'Cancelled');
+    const denied = d.filter(x => isDeniedClaim(x));
     const paDenied = d.filter(x => x.status === 'Pre Auth Denied');
     const paTotal = d.filter(x => x.status.startsWith('Pre Auth') || x.status.startsWith('Discharge') || x.status.startsWith('Enhancement'));
 
