@@ -177,8 +177,8 @@ export function CorporateTab() {
       {corpArr.length > 0 && (
         <DataTable
           title="Top Corporate Scorecard"
-          subtitle="Performance by Policy Holder Name"
-          headers={['Corporate Name', 'Insurer', 'Claims', 'Billed', 'Approval %', 'Collection %', 'Denial %', 'Avg TAT']}
+          subtitle="Ranked by unique patients, then billed value"
+          headers={['Corporate Name', 'Insurer', 'Unique Patients', 'Claims', 'Billed', 'Approval %', 'Collection %', 'Denial %', 'Avg TAT']}
           rows={corpArr.slice(0, 20).map(([k, v]) => {
             const aR = pct(v.approved, v.claimed);
             const cR = pct(v.settled, v.approved);
