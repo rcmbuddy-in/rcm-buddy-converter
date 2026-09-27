@@ -269,7 +269,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     if (!tpaLeak[k]) tpaLeak[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, shortfall: 0, denied: 0, denVal: 0 };
     const t = tpaLeak[k];
     t.cnt++; if (x.status === 'Cancelled') t.cnc++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt; t.shortfall += x.shortfall;
-    if (isDenied(x.status)) { t.denied++; t.denVal += x.claimedAmt; }
+    if (isDeniedClaim(x)) { t.denied++; t.denVal += x.claimedAmt; }
   });
 
   return {
