@@ -248,7 +248,9 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const tatCovered = data.filter(x => x.status === 'Settled' && payerTat(x) !== null).length;
   const settledCnt = data.filter(x => x.status === 'Settled').length;
   const agedFromAdmission = pending.filter(x => !x.docSubmit && !x.discharge).length;
-  const statusSum = data.filter(x => isDenied(x.status)).length + data.filter(x => isValidClosed(x.status)).length + pending.length + data.filter(x => x.status === 'Cancelled').length;
+  const deniedAll = data.filter(x => isDeniedClaim(x)).length;
+  const validAll = data.filter(x => isValidClosed(x.status) && !isDeniedClaim(x)).length;
+  const statusSum = deniedAll + validAll + pending.length + data.filter(x => x.status === 'Cancelled').length;
   const r = (v: number) => Math.round(v);
   const reconciliation: ReconCheck[] = [
     { name: 'Leakage buckets are mutually exclusive', pass: leakTotal <= totalClaimed + 1, detail: `Leakage ₹${r(leakTotal).toLocaleString('en-IN')} ≤ Billed ₹${r(totalClaimed).toLocaleString('en-IN')}; denied claims counted only in Denied bucket` },
