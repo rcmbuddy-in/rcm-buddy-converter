@@ -224,7 +224,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   let payerDed = 0, shortfallVal = 0, uncollected = 0, deniedVal = 0, overApprovedRows = 0, overSettledRows = 0;
   data.forEach(x => {
     if (x.status === 'Cancelled') return;
-    if (isDenied(x.status)) { deniedVal += x.claimedAmt; return; }
+    if (isDeniedClaim(x)) { deniedVal += x.claimedAmt; return; }
     const sf = Math.max(0, x.shortfall);
     const ded = x.claimedAmt - x.approvedAmt - sf;
     if (ded < 0 && x.approvedAmt > 0) overApprovedRows++;
