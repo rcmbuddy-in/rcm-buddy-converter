@@ -134,7 +134,7 @@ export function CorporateTab() {
       </MetricGrid>
 
       <ChartGrid>
-        <ChartCard title="Top Corporates by Volume" subtitle="By Policy Holder Name" height="320px">
+        <ChartCard title="Top Corporates by Unique Patients" subtitle="By Policy Holder Name" height="320px">
           <ResponsiveContainer>
             <BarChart data={topCorps} layout="vertical">
               <XAxis type="number" tick={{ fontSize: 11 }} />
