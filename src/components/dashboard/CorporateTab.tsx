@@ -54,7 +54,7 @@ export function CorporateTab() {
   const totalClaimed = sm(corpData.map(x => x.claimedAmt));
   const totalApproved = sm(corpData.map(x => x.approvedAmt));
   const totalSettled = sm(corpData.map(x => x.settledAmt));
-  const denied = corpData.filter(x => isDeniedStatus(x.status));
+  const denied = corpData.filter(x => isDeniedClaim(x));
   const tatVals = corpData.map(x => payerTat(x)).filter((v): v is number => v !== null);
 
   const approvalRate = pct(totalApproved, totalClaimed);
