@@ -1,4 +1,4 @@
-import { isDeniedStatus } from '@/lib/rcm-data';
+import { isDeniedClaim } from '@/lib/rcm-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useChartPrefs } from '@/contexts/ChartPrefsContext';
 import { MetricCard, MetricGrid } from './MetricCard';
@@ -47,7 +47,7 @@ export function MoMTab() {
     b.claimed += x.claimedAmt;
     b.approved += x.approvedAmt;
     b.settled += x.settledAmt;
-    if (isDeniedStatus(x.status)) b.denied++;
+    if (isDeniedClaim(x)) b.denied++;
     const tat = payerTat(x);
     if (tat !== null && tat < 365) b.tatVals.push(tat);
   });

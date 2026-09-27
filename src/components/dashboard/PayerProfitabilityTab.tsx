@@ -1,4 +1,4 @@
-import { isDeniedStatus } from '@/lib/rcm-data';
+import { isDeniedClaim } from '@/lib/rcm-data';
 import { useState, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
@@ -35,7 +35,7 @@ export function PayerProfitabilityTab() {
       if (!m[k]) m[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, denVal: 0, tats: [] };
       const g = m[k];
       g.cnt++; g.claimed += x.claimedAmt; g.approved += x.approvedAmt; g.settled += x.settledAmt;
-      if (isDeniedStatus(x.status)) {
+      if (isDeniedClaim(x)) {
         g.denied++; g.denVal += x.claimedAmt;
       }
       const t = payerTat(x);
