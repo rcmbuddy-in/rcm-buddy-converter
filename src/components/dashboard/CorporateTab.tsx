@@ -65,21 +65,24 @@ export function CorporateTab() {
   const corpShare = pct(n, globalData.allData.length);
 
   // Group by Policy Holder Name (corporate name)
-  const corpMap: Record<string, { cancelled?: number; cnt: number; claimed: number; approved: number; settled: number; denied: number; tatVals: number[]; insurer: string }> = {};
+  const corpMap: Record<string, { cancelled?: number; cnt: number; claimed: number; approved: number; settled: number; denied: number; tatVals: number[]; insurer: string; patients: Set<string> }> = {};
   corpData.forEach(x => {
     const k = x.policyHolder;
-    if (!corpMap[k]) corpMap[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], insurer: x.insurer };
+    if (!corpMap[k]) corpMap[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], insurer: x.insurer, patients: new Set<string>() };
     const p = corpMap[k];
     p.cnt++; if (x.status === 'Cancelled') p.cancelled = (p.cancelled || 0) + 1; p.claimed += x.claimedAmt; p.approved += x.approvedAmt; p.settled += x.settledAmt;
-    if (isDeniedStatus(x.status)) p.denied++;
+    if (isDeniedClaim(x)) p.denied++;
+    const pk = patientKey(x);
+    if (pk) p.patients.add(pk);
     const tat = payerTat(x);
     if (tat !== null && tat < 365) p.tatVals.push(tat);
   });
 
-  const corpArr = Object.entries(corpMap).sort((a, b) => b[1].claimed - a[1].claimed);
+  // Ranked by unique patients first, then billed value
+  const corpArr = Object.entries(corpMap).sort((a, b) => (b[1].patients.size - a[1].patients.size) || (b[1].claimed - a[1].claimed));
 
-  // Top corporates chart
-  const topCorps = corpArr.slice(0, 10).map(([k, v]) => ({ name: k.length > 25 ? k.slice(0, 22) + '...' : k, value: v.cnt, claimed: v.claimed }));
+  // Top corporates chart — by unique patients
+  const topCorps = corpArr.slice(0, 10).map(([k, v]) => ({ name: k.length > 25 ? k.slice(0, 22) + '...' : k, value: v.patients.size, claims: v.cnt, claimed: v.claimed }));
 
   // Monthly trend
   const monthMap: Record<string, { cnt: number; claimed: number; settled: number }> = {};
