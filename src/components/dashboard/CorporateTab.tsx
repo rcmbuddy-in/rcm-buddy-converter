@@ -140,7 +140,7 @@ export function CorporateTab() {
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 9 }} />
               <Tooltip />
-              <Bar dataKey="value" name="Claims" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="value" name="Unique Patients" radius={[0, 4, 4, 0]}>
                 {topCorps.map((_, i) => <Cell key={i} fill={R_PAL[i % R_PAL.length]} />)}
               </Bar>
             </BarChart>
