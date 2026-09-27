@@ -59,7 +59,7 @@ export function DSOTab() {
     if (!months[k]) months[k] = { key: k, billed: 0, collected: 0, ar: 0 };
     months[k].billed += x.claimedAmt;
     months[k].collected += x.settledAmt;
-    if (PENDING(x.status)) months[k].ar += x.claimedAmt;
+    if (isPendingClaim(x)) months[k].ar += arOutstanding(x);
   });
   const monthly = Object.values(months).sort((a, b) => a.key.localeCompare(b.key)).slice(-12).map(m => {
     const dsoVal = m.billed ? (m.ar / m.billed) * 30 : 0; // monthly DSO approximation
