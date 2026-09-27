@@ -18,10 +18,12 @@ function bucket(age: number | string): string {
   return '180+';
 }
 
-function category(status: string): string {
-  if (DENIED.includes(status)) return 'Denied';
-  if (VALID_CLOSED.includes(status)) return 'Valid / Closed';
+function category(x: ClaimRecord): string {
+  const status = x.status;
   if (REMOVED.includes(status)) return 'Removed (Cancelled)';
+  // Zero-approval claims are denials, never receivables
+  if (DENIED.includes(status) || (x.approvedAmt <= 0 && x.settledAmt <= 0)) return 'Denied';
+  if (VALID_CLOSED.includes(status)) return 'Valid / Closed';
   return 'Active / Pending';
 }
 
@@ -46,7 +48,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
     'Treatment', 'Diagnosis', 'Policy Type', 'Policy Holder / Corporate',
     'Status Category', 'AR Age (Days since Submission)', 'AR Aging Bucket',
     'Payer TAT Submission→Payment (Days)', 'Approval %', 'Collection %', 'Net Yield %',
-    'Disallowed Amt', 'Uncollected Amt',
+    'Disallowed Amt', 'Uncollected Amt', 'AR Outstanding (Approved Balance)',
   ];
 
   const rows: any[][] = [header];
@@ -59,7 +61,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
       x.claimedAmt, x.approvedAmt, x.copay, x.shortfall, x.discount, x.patientPaid,
       x.settledAmt, x.tdsAmt, x.status, fmtDate(x.docSubmit), fmtDate(x.paymentDate),
       x.treatment, x.diagnosis, x.policyType, x.policyHolder,
-      category(x.status),
+      category(x),
       age,
       bucket(age),
       dayDiff(x.docSubmit || x.discharge, x.paymentDate),
@@ -68,6 +70,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
       { f: `IFERROR(M${r}/G${r},0)` },
       { f: `IF(V${r}="Denied",0,MAX(0,G${r}-H${r}-J${r}))` },
       { f: `IF(O${r}="Settled",MAX(0,H${r}-M${r}-I${r}-N${r}),0)` },
+      { f: `IF(V${r}="Active / Pending",MAX(0,H${r}-M${r}-N${r}-I${r}),0)` },
     ]);
   });
 
@@ -190,7 +193,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
   // ===== Sheet 6: Definitions & Methodology =====
   const def: any[][] = [
     ['Field / Metric', 'Definition / Formula'],
-    ['Status Category — Denied', DENIED.join(', ')],
+    ['Status Category — Denied', DENIED.join(', ') + '; plus any non-cancelled claim with zero approved amount'],
     ['Status Category — Valid / Closed', VALID_CLOSED.join(', ')],
     ['Status Category — Removed', REMOVED.join(', ')],
     ['Status Category — Active / Pending', 'All other statuses (pre-auth in progress, query, etc.)'],
@@ -231,7 +234,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
     ['Overview', 'Net Collection Rate', 'KPI Summary', 'B13', '=IFERROR(B5/B4,0)', 'Settled ÷ Approved'],
     ['Overview', 'Payer TAT', 'Claims', 'Y2:Y{last}', '=Payment Date − Doc Submit Date', 'Average of column Y for settled claims'],
     ['Overview', 'Denial Rate', 'Claims', 'V2:V{last}', '=COUNTIF(V2:V{last},"Denied") / COUNTA(V2:V{last})', 'Denied status category ÷ total'],
-    ['Overview', 'Pending AR', 'Claims', 'V2:V{last}', '=SUMIF(V2:V{last},"Active / Pending",G2:G{last})', 'Sum claimed where status category = Active/Pending'],
+    ['Overview', 'Pending AR', 'Claims', 'V2:V{last}', '=SUMIF(V2:V{last},"Active / Pending",AE2:AE{last})', 'Sum of approved balance still due on open claims'],
     ['Overview', 'Claim Status Distribution', 'Claims', 'V2:V{last}', 'COUNTIF by Status Category', 'Pie chart of Status Category counts'],
     ['Overview', 'Monthly Claims — Volume', 'Claims', 'B2:B{last}', 'Pivot by month of Admission Date', 'Bar: count of claims per month'],
     ['Overview', 'Monthly Claims — Amount', 'Claims', 'G2:G{last}', 'SUMIF by month of Admission Date', 'Bar: sum of Claimed Amt per month'],
@@ -282,7 +285,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
     ['TAT', 'TAT Breakdown by Stage', 'Claims', 'B2:Q{last}', 'MIN/MAX/AVERAGE of date differences by stage', 'Table of stage-wise TAT stats'],
 
     // AR Tab
-    ['AR', 'Total Pending AR', 'Claims', 'V2:V{last}, G2:G{last}', '=SUMIF(V2:V{last},"Active / Pending",G2:G{last})', 'Sum claimed for non-settled/non-denied claims'],
+    ['AR', 'Total Pending AR', 'Claims', 'V2:V{last}, G2:G{last}', '=SUMIF(V2:V{last},"Active / Pending",AE2:AE{last})', 'Approved balance outstanding on open claims (zero-approval claims excluded as denials)'],
     ['AR', 'AR-to-Revenue Ratio', 'KPI Summary', 'B3 + Pending AR', '=Pending AR ÷ Total Claimed', '% of billed still outstanding'],
     ['AR', '90+ Day Aged Claims', 'AR Aging', 'A4:A5', '=SUM(AR Aging!B4:B5) claims; =SUM(AR Aging!C4:C5) value', '91-180 + 180+ buckets'],
     ['AR', '180+ Day Claims', 'AR Aging', 'A5', '=AR Aging!B5 claims; =AR Aging!C5 value', 'Critical age bucket'],
@@ -312,7 +315,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
     ['Leakage', 'Leakage Recovery by Payer', 'TPA Performance', 'A2:J{tpalast}', 'Full TPA Performance with deduction & shortfall', 'Table of leakage opportunities per payer'],
 
     // Cash Flow Tab
-    ['Cash Flow', 'Total Open AR', 'AR Aging / Claims', 'Pending sum', '=SUMIF(V2:V{last},"Active / Pending",G2:G{last})', 'Same as AR tab'],
+    ['Cash Flow', 'Total Open AR', 'AR Aging / Claims', 'Pending sum', '=SUMIF(V2:V{last},"Active / Pending",AE2:AE{last})', 'Same as AR tab'],
     ['Cash Flow', 'Expected (90 days)', 'Claims', 'G2:G{last}, W2:W{last}', 'Open claims × payer historical realization rate, bucketed by projected days', 'Forecast using payer-specific rates'],
     ['Cash Flow', 'Beyond 90 Days', 'Claims', 'G2:G{last}', 'Remaining open AR not in 90-day buckets', 'Long-tail collection estimate'],
     ['Cash Flow', 'At-Risk Receivables', 'Claims', 'G2:G{last}, W2:W{last}', '180+ day open claims × 50% provision', 'Provisioned at-risk amount'],
@@ -323,7 +326,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
     // DSO Tab
     ['DSO', 'DSO (Days Sales Outstanding)', 'KPI Summary', 'B3, Pending AR', '=(Pending AR ÷ Total Claimed) × Period Days', 'Industry benchmark: <45d excellent'],
     ['DSO', 'Avg Collection TAT', 'Claims', 'Y2:Y{last}', 'AVERAGE of Payment Date − Admission Date', 'For settled claims only'],
-    ['DSO', 'Pending AR', 'Claims', 'V2:V{last}, G2:G{last}', '=SUMIF(V2:V{last},"Active / Pending",G2:G{last})', 'Same as AR tab'],
+    ['DSO', 'Pending AR', 'Claims', 'V2:V{last}, G2:G{last}', '=SUMIF(V2:V{last},"Active / Pending",AE2:AE{last})', 'Same as AR tab'],
     ['DSO', 'Net Collection Rate', 'KPI Summary', 'B5/B3', '=IFERROR(B5/B3,0)', 'Settled ÷ Claimed'],
     ['DSO', 'Velocity @ 30/60/90 days', 'Claims', 'Y2:Y{last}', '=% of settled claims with TAT ≤ N days', 'Collection speed buckets'],
     ['DSO', 'DSO Trend (Monthly)', 'Claims', 'B2:G{last}', 'Monthly (Pending ÷ Billed) × 30', 'Line + bar of monthly DSO'],

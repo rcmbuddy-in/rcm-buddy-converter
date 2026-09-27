@@ -1,4 +1,4 @@
-import { isPendingStatus } from '@/lib/rcm-data';
+import { isPendingClaim, arOutstanding } from '@/lib/rcm-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
@@ -34,8 +34,7 @@ export function DSOTab() {
   const periodDays = Math.max(1, Math.round((maxD.getTime() - minD.getTime()) / 86400000));
 
   // AR = pending value
-  const PENDING = isPendingStatus;
-  const arVal = sm(d.filter(x => PENDING(x.status)).map(x => x.claimedAmt));
+  const arVal = sm(d.filter(x => isPendingClaim(x)).map(arOutstanding));
   const dso = totalClaimed ? (arVal / totalClaimed) * periodDays : 0;
 
   // Settled-only TAT for velocity
@@ -60,7 +59,7 @@ export function DSOTab() {
     if (!months[k]) months[k] = { key: k, billed: 0, collected: 0, ar: 0 };
     months[k].billed += x.claimedAmt;
     months[k].collected += x.settledAmt;
-    if (PENDING(x.status)) months[k].ar += x.claimedAmt;
+    if (isPendingClaim(x)) months[k].ar += arOutstanding(x);
   });
   const monthly = Object.values(months).sort((a, b) => a.key.localeCompare(b.key)).slice(-12).map(m => {
     const dsoVal = m.billed ? (m.ar / m.billed) * 30 : 0; // monthly DSO approximation

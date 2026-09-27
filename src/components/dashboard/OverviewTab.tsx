@@ -4,7 +4,7 @@ import { ChartCard, ChartGrid } from './ChartCard';
 import { SectionHeading } from './SectionHeading';
 import { HealthScoreCard, LeakageBanner } from './HealthScoreCard';
 import { computeHealthScore, getLeakageSummary } from '@/lib/insights-engine';
-import { isDeniedStatus } from '@/lib/rcm-data';
+import { isDeniedClaim } from '@/lib/rcm-data';
 import { ReconciliationPanel } from './ReconciliationPanel';
 import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
@@ -21,7 +21,7 @@ export function OverviewTab() {
   const leakage = getLeakageSummary(globalData);
 
   const settled = d.filter(x => x.status === 'Settled');
-  const denied = d.filter(x => isDeniedStatus(x.status));
+  const denied = d.filter(x => isDeniedClaim(x));
   const approvalRate = pct(totalApproved, totalClaimed);
   const netCollRate = pct(totalSettled, totalApproved);
   const tatVals = d.map(x => payerTat(x)).filter((v): v is number => v !== null);

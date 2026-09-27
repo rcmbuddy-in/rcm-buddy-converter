@@ -11,7 +11,8 @@ export function PayerTab() {
   if (!globalData) return null;
   const { n, totalClaimed, tpaArr } = globalData;
 
-  const byVol = [...tpaArr].sort((a, b) => b.v.claimed - a.v.claimed);
+  // Ranked by unique patients first, then billed value
+  const byVol = [...tpaArr].sort((a, b) => ((b.uniquePatients || 0) - (a.uniquePatients || 0)) || (b.v.claimed - a.v.claimed));
   const byApprH = [...tpaArr].sort((a, b) => b.approvalRate - a.approvalRate);
   const byApprL = [...tpaArr].sort((a, b) => a.approvalRate - b.approvalRate);
   const byNetColl = [...tpaArr].sort((a, b) => b.collRate - a.collRate);
@@ -24,7 +25,7 @@ export function PayerTab() {
       <SectionHeading title="Payer Performance" tag="TPA/Insurer Benchmarking" />
       <MetricGrid>
         <MetricCard label={`Active ${label}s`} value={Object.keys(globalData.tpaMap).length.toString()} subtitle="Unique payers in data" />
-        <MetricCard label="Top Payer by Volume" value={byVol[0] ? shortP(byVol[0].k) : '—'} subtitle={byVol[0] ? byVol[0].v.cnt + ' claims (' + fN(pct(byVol[0].v.cnt, n)) + '%)' : ''} />
+        <MetricCard label="Top Payer by Patients" value={byVol[0] ? shortP(byVol[0].k) : '—'} subtitle={byVol[0] ? (byVol[0].uniquePatients || 0) + ' unique patients · ' + byVol[0].v.cnt + ' claims' : ''} highlighted />
         <MetricCard label="Best Approval Rate" value={fN(byApprH[0]?.approvalRate || 0) + '%'} subtitle={byApprH[0] ? shortP(byApprH[0].k) : ''} />
         <MetricCard label="Worst Approval Rate" value={fN(byApprL[0]?.approvalRate || 0) + '%'} subtitle={byApprL[0] ? shortP(byApprL[0].k) : ''} />
         <MetricCard label="Payer Concentration" value={fN(pct(byVol[0]?.v.claimed || 0, totalClaimed)) + '%'} subtitle="Largest payer share of billed" />
@@ -49,13 +50,13 @@ export function PayerTab() {
         </ChartCard>
       </ChartGrid>
 
-      <DataTable title="Full Payer Scorecard" subtitle="All metrics per TPA/Insurer · Graded A–D"
-        headers={[label, 'Claims', 'Billed', 'Approval %', 'Net Coll %', 'Denial %', 'Avg TAT', 'Grade']}
+      <DataTable title="Full Payer Scorecard" subtitle="Ranked by unique patients, then billed value · Graded A–D"
+        headers={[label, 'Unique Patients', 'Claims', 'Billed', 'Approval %', 'Net Coll %', 'Denial %', 'Avg TAT', 'Grade']}
         rows={byVol.slice(0, 15).map(t => {
           const score = (t.approvalRate * 0.4) + (t.collRate * 0.4) + ((100 - t.denialRate) * 0.2);
           const grade = score > 80 ? 'A' : score > 65 ? 'B' : score > 50 ? 'C' : 'D';
           const gc = grade === 'A' ? 'good' : grade === 'B' ? 'warning' : 'critical';
-          return [shortP(t.k), t.v.cnt.toString(), fmt(t.v.claimed),
+          return [shortP(t.k), (t.uniquePatients || 0).toLocaleString(), t.v.cnt.toString(), fmt(t.v.claimed),
             <span style={{ color: t.approvalRate > 75 ? '#15803D' : t.approvalRate > 60 ? '#854D0E' : '#9B1C1C' }}>{fN(t.approvalRate)}%</span>,
             fN(t.collRate) + '%',
             <span style={{ color: t.denialRate > 20 ? '#9B1C1C' : t.denialRate > 10 ? '#854D0E' : '#15803D' }}>{fN(t.denialRate)}%</span>,

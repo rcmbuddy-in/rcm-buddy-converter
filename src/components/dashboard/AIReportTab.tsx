@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { SectionHeading } from './SectionHeading';
 import { fmt, fN, pct, avg, ddiff, sm, shortP, score, scoreColor } from '@/lib/rcm-utils';
+import { isPendingClaim, isDeniedClaim, arOutstanding } from '@/lib/rcm-data';
 
 export function AIReportTab() {
   const { globalData } = useDashboard();
@@ -13,8 +14,8 @@ export function AIReportTab() {
     const d = globalData!.data;
     const { n, totalClaimed, totalApproved, totalSettled, totalShortfall, totalCopay, totalDiscount, totalTDS, tpaArr, ageBuckets, leakageData } = globalData!;
 
-    const pending = d.filter(x => !['Settled', 'Claim Denied', 'Pre Auth Denied', 'Cancelled', 'Enhancement Denied', 'Discharge Denied'].includes(x.status));
-    const denied = d.filter(x => x.status.toLowerCase().includes('denied') || x.status === 'Cancelled');
+    const pending = d.filter(x => isPendingClaim(x));
+    const denied = d.filter(x => isDeniedClaim(x));
     const paDenied = d.filter(x => x.status === 'Pre Auth Denied');
     const paTotal = d.filter(x => x.status.startsWith('Pre Auth') || x.status.startsWith('Discharge') || x.status.startsWith('Enhancement'));
 
@@ -29,7 +30,7 @@ export function AIReportTab() {
     const avgSub = avg(d.map(x => ddiff(x.admission, x.docSubmit)).filter((v): v is number => v !== null && v < 365));
     const avgPay = avg(d.map(x => ddiff(x.docSubmit, x.paymentDate)).filter((v): v is number => v !== null && v < 365));
 
-    const pendVal = sm(pending.map(x => x.claimedAmt));
+    const pendVal = sm(pending.map(arOutstanding));
     const aged180 = ageBuckets['180+'] || { cnt: 0, val: 0 };
     const aged90 = ageBuckets['91-180'] || { cnt: 0, val: 0 };
 

@@ -1,4 +1,4 @@
-import { isPendingStatus } from '@/lib/rcm-data';
+import { isPendingClaim } from '@/lib/rcm-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
@@ -12,7 +12,7 @@ export function ARTab() {
   if (!globalData) return null;
   const { data: d, n, ageBuckets, totalClaimed } = globalData;
 
-  const pending = d.filter(x => isPendingStatus(x.status));
+  const pending = d.filter(x => isPendingClaim(x));
   const pendVal = globalData.pendingAR.val;
   const arToRev = pct(pendVal, totalClaimed);
 
@@ -31,7 +31,7 @@ export function ARTab() {
     <div className="animate-fadeIn">
       <SectionHeading title="Accounts Receivable Management" tag="Cash Flow & Aging" />
       <MetricGrid>
-        <MetricCard label="Total Pending AR" value={fmt(pendVal)} subtitle={pending.length + ' open claims'} highlighted />
+        <MetricCard label="Total Pending AR" value={fmt(pendVal)} subtitle={pending.length + ' open claims · approved balance due'} highlighted />
         <MetricCard label="AR-to-Revenue Ratio" value={fN(arToRev) + '%'} subtitle="Pending ÷ Total billed" />
         <MetricCard label="90+ Day Aged Claims" value={aged90.toString()} subtitle={fmt(aged90Val) + ' at risk'} badge={aged90 > 0 ? { type: 'critical', text: 'Action Required' } : { type: 'good', text: 'Clear' }} />
         <MetricCard label="180+ Day Claims" value={(ab['180+']?.cnt || 0).toString()} subtitle={fmt(ab['180+']?.val || 0) + ' critical age'} badge={(ab['180+']?.cnt || 0) > 0 ? { type: 'critical', text: 'Urgent' } : { type: 'good', text: 'None' }} />

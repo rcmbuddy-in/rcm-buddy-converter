@@ -1,4 +1,4 @@
-import { ClaimRecord, GlobalData, computeGlobals, isDeniedStatus, DENIED_STATUSES, VALID_CLOSED_STATUSES } from './rcm-data';
+import { ClaimRecord, GlobalData, computeGlobals, isDeniedClaim, isPendingClaim, arOutstanding, DENIED_STATUSES, VALID_CLOSED_STATUSES } from './rcm-data';
 import { pct, avg, payerTat, fmt, fN } from './rcm-utils';
 
 export type KpiKind = 'count' | 'money' | 'pct' | 'days';
@@ -9,7 +9,7 @@ export interface KpiDef {
 }
 
 const nonCancelled = (g: GlobalData) => g.data.filter(x => x.status !== 'Cancelled').length;
-const deniedCnt = (g: GlobalData) => g.data.filter(x => isDeniedStatus(x.status)).length;
+const deniedCnt = (g: GlobalData) => g.data.filter(x => isDeniedClaim(x)).length;
 const tat = (g: GlobalData) => avg(g.data.map(payerTat).filter((v): v is number => v !== null));
 
 export const KPIS: KpiDef[] = [
@@ -96,11 +96,11 @@ export const AUDIT: AuditEntry[] = [
   { id: 'approvalRate', definition: 'Share of billed value that payers approved.', formula: 'SUM(Approved) ÷ SUM(Claimed) × 100', dateBasis: 'Date of Admission', included: ALL_BUT_NONE, exclusions: 'Quarantined rows', sample: x => x.claimedAmt ? `${fmt(x.approvedAmt)} ÷ ${fmt(x.claimedAmt)} = ${fN(pct(x.approvedAmt, x.claimedAmt))}%` : null },
   { id: 'netColl', definition: 'Share of approved value actually settled.', formula: 'SUM(Settled) ÷ SUM(Approved) × 100', dateBasis: 'Date of Admission', included: ALL_BUT_NONE, exclusions: 'Quarantined rows', sample: x => x.approvedAmt ? `${fmt(x.settledAmt)} ÷ ${fmt(x.approvedAmt)} = ${fN(pct(x.settledAmt, x.approvedAmt))}%` : null },
   { id: 'tat', definition: 'Average days payers take to pay after documents are submitted.', formula: 'AVG(Payment Date − Document Submission Date); falls back to Discharge Date', dateBasis: 'Document Submission → Payment Update Date', included: 'Claims with a payment date', exclusions: 'Claims with no payment date, negative gaps, or gaps of 365+ days', sample: x => { const t = payerTat(x); return t === null ? null : `${t} days`; } },
-  { id: 'denialRate', definition: 'Share of non-cancelled claims that were denied.', formula: 'COUNT(denied) ÷ COUNT(status ≠ Cancelled) × 100', dateBasis: 'Date of Admission', included: 'Denied: ' + DENIED_STATUSES.join(', '), exclusions: 'Cancelled claims are removed from both sides', sample: x => x.status === 'Cancelled' ? null : (isDeniedStatus(x.status) ? 'Counts as denied (1 ÷ 1)' : 'Counts as not denied (0 ÷ 1)') },
-  { id: 'pendingAR', definition: 'Claimed value of claims still awaiting a decision or payment.', formula: 'SUM(Claimed) where status is active', dateBasis: 'Aged from Document Submission → Discharge → Admission', included: 'Any status not in: ' + [...VALID_CLOSED_STATUSES, ...DENIED_STATUSES, 'Cancelled'].join(', '), exclusions: 'Settled/valid, denied and cancelled claims', sample: x => (!VALID_CLOSED_STATUSES.includes(x.status) && !isDeniedStatus(x.status) && x.status !== 'Cancelled') ? `Adds ${fmt(x.claimedAmt)}` : null },
+  { id: 'denialRate', definition: 'Share of non-cancelled claims that were denied.', formula: 'COUNT(denied) ÷ COUNT(status ≠ Cancelled) × 100', dateBasis: 'Date of Admission', included: 'Denied: ' + DENIED_STATUSES.join(', ') + '; plus any non-cancelled claim with zero approved amount', exclusions: 'Cancelled claims are removed from both sides', sample: x => x.status === 'Cancelled' ? null : (isDeniedClaim(x) ? 'Counts as denied (1 ÷ 1)' : 'Counts as not denied (0 ÷ 1)') },
+  { id: 'pendingAR', definition: 'Approved amount still to be collected on open claims.', formula: 'SUM(Approved − Settled − TDS − Copay) where the claim is open and approved > 0', dateBasis: 'Aged from Document Submission → Discharge → Admission', included: 'Any status not in: ' + [...VALID_CLOSED_STATUSES, ...DENIED_STATUSES, 'Cancelled'].join(', ') + ', with an approved amount above zero', exclusions: 'Settled/valid, denied, cancelled, and zero-approval claims (counted as denials)', sample: x => isPendingClaim(x) ? `Adds ${fmt(arOutstanding(x))}` : null },
   { id: 'leakage', definition: 'Money lost, split into separate buckets so no rupee is counted twice.', formula: 'Denied value + Payer deduction (Claimed − Approved − Shortfall) + Shortfall + Short-settlement (Approved − Settled − Copay − TDS, settled only)', dateBasis: 'Date of Admission', included: 'All non-cancelled claims', exclusions: 'Cancelled; open claims are counted as AR, not short-settlement', sample: x => {
     if (x.status === 'Cancelled') return null;
-    if (isDeniedStatus(x.status)) return `Denied: ${fmt(x.claimedAmt)}`;
+    if (isDeniedClaim(x)) return `Denied: ${fmt(x.claimedAmt)}`;
     const sf = Math.max(0, x.shortfall), ded = Math.max(0, x.claimedAmt - x.approvedAmt - sf);
     const gap = x.status === 'Settled' ? Math.max(0, x.approvedAmt - x.settledAmt - x.copay - x.tdsAmt) : 0;
     return `Deduction ${fmt(ded)} + Shortfall ${fmt(sf)} + Short-settle ${fmt(gap)} = ${fmt(ded + sf + gap)}`;

@@ -1,4 +1,4 @@
-import { isDeniedStatus } from '@/lib/rcm-data';
+import { isDeniedClaim, patientKey } from '@/lib/rcm-data';
 import { useState, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useChartPrefs } from '@/contexts/ChartPrefsContext';
@@ -54,7 +54,7 @@ export function CorporateTab() {
   const totalClaimed = sm(corpData.map(x => x.claimedAmt));
   const totalApproved = sm(corpData.map(x => x.approvedAmt));
   const totalSettled = sm(corpData.map(x => x.settledAmt));
-  const denied = corpData.filter(x => isDeniedStatus(x.status));
+  const denied = corpData.filter(x => isDeniedClaim(x));
   const tatVals = corpData.map(x => payerTat(x)).filter((v): v is number => v !== null);
 
   const approvalRate = pct(totalApproved, totalClaimed);
@@ -65,21 +65,24 @@ export function CorporateTab() {
   const corpShare = pct(n, globalData.allData.length);
 
   // Group by Policy Holder Name (corporate name)
-  const corpMap: Record<string, { cancelled?: number; cnt: number; claimed: number; approved: number; settled: number; denied: number; tatVals: number[]; insurer: string }> = {};
+  const corpMap: Record<string, { cancelled?: number; cnt: number; claimed: number; approved: number; settled: number; denied: number; tatVals: number[]; insurer: string; patients: Set<string> }> = {};
   corpData.forEach(x => {
     const k = x.policyHolder;
-    if (!corpMap[k]) corpMap[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], insurer: x.insurer };
+    if (!corpMap[k]) corpMap[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], insurer: x.insurer, patients: new Set<string>() };
     const p = corpMap[k];
     p.cnt++; if (x.status === 'Cancelled') p.cancelled = (p.cancelled || 0) + 1; p.claimed += x.claimedAmt; p.approved += x.approvedAmt; p.settled += x.settledAmt;
-    if (isDeniedStatus(x.status)) p.denied++;
+    if (isDeniedClaim(x)) p.denied++;
+    const pk = patientKey(x);
+    if (pk) p.patients.add(pk);
     const tat = payerTat(x);
     if (tat !== null && tat < 365) p.tatVals.push(tat);
   });
 
-  const corpArr = Object.entries(corpMap).sort((a, b) => b[1].claimed - a[1].claimed);
+  // Ranked by unique patients first, then billed value
+  const corpArr = Object.entries(corpMap).sort((a, b) => (b[1].patients.size - a[1].patients.size) || (b[1].claimed - a[1].claimed));
 
-  // Top corporates chart
-  const topCorps = corpArr.slice(0, 10).map(([k, v]) => ({ name: k.length > 25 ? k.slice(0, 22) + '...' : k, value: v.cnt, claimed: v.claimed }));
+  // Top corporates chart — by unique patients
+  const topCorps = corpArr.slice(0, 10).map(([k, v]) => ({ name: k.length > 25 ? k.slice(0, 22) + '...' : k, value: v.patients.size, claims: v.cnt, claimed: v.claimed }));
 
   // Monthly trend
   const monthMap: Record<string, { cnt: number; claimed: number; settled: number }> = {};
@@ -131,13 +134,13 @@ export function CorporateTab() {
       </MetricGrid>
 
       <ChartGrid>
-        <ChartCard title="Top Corporates by Volume" subtitle="By Policy Holder Name" height="320px">
+        <ChartCard title="Top Corporates by Unique Patients" subtitle="By Policy Holder Name" height="320px">
           <ResponsiveContainer>
             <BarChart data={topCorps} layout="vertical">
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 9 }} />
               <Tooltip />
-              <Bar dataKey="value" name="Claims" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="value" name="Unique Patients" radius={[0, 4, 4, 0]}>
                 {topCorps.map((_, i) => <Cell key={i} fill={R_PAL[i % R_PAL.length]} />)}
               </Bar>
             </BarChart>
@@ -174,8 +177,8 @@ export function CorporateTab() {
       {corpArr.length > 0 && (
         <DataTable
           title="Top Corporate Scorecard"
-          subtitle="Performance by Policy Holder Name"
-          headers={['Corporate Name', 'Insurer', 'Claims', 'Billed', 'Approval %', 'Collection %', 'Denial %', 'Avg TAT']}
+          subtitle="Ranked by unique patients, then billed value"
+          headers={['Corporate Name', 'Insurer', 'Unique Patients', 'Claims', 'Billed', 'Approval %', 'Collection %', 'Denial %', 'Avg TAT']}
           rows={corpArr.slice(0, 20).map(([k, v]) => {
             const aR = pct(v.approved, v.claimed);
             const cR = pct(v.settled, v.approved);
@@ -184,6 +187,7 @@ export function CorporateTab() {
             return [
               k,
               v.insurer,
+              v.patients.size.toLocaleString(),
               v.cnt.toString(),
               fmt(v.claimed),
               <span style={{ color: aR > 75 ? '#15803D' : aR > 60 ? '#854D0E' : '#9B1C1C' }}>{fN(aR)}%</span>,

@@ -224,7 +224,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   let payerDed = 0, shortfallVal = 0, uncollected = 0, deniedVal = 0, overApprovedRows = 0, overSettledRows = 0;
   data.forEach(x => {
     if (x.status === 'Cancelled') return;
-    if (isDenied(x.status)) { deniedVal += x.claimedAmt; return; }
+    if (isDeniedClaim(x)) { deniedVal += x.claimedAmt; return; }
     const sf = Math.max(0, x.shortfall);
     const ded = x.claimedAmt - x.approvedAmt - sf;
     if (ded < 0 && x.approvedAmt > 0) overApprovedRows++;
@@ -242,13 +242,15 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const totalPatientCollected = sm(data.map(patientCollected));
   const copayInside = data.filter(x => x.copay > 0 && x.patientPaid >= x.copay).length;
   const copaySeparate = data.filter(x => x.copay > 0 && x.patientPaid < x.copay).length;
-  const pendingAR = { cnt: pending.length, val: sm(pending.map(x => x.claimedAmt)) };
+  const pendingAR = { cnt: pending.length, val: sm(pending.map(arOutstanding)) };
   const bucketCnt = Object.values(buckets).reduce((a, b) => a + b.cnt, 0);
   const bucketVal = Object.values(buckets).reduce((a, b) => a + b.val, 0);
   const tatCovered = data.filter(x => x.status === 'Settled' && payerTat(x) !== null).length;
   const settledCnt = data.filter(x => x.status === 'Settled').length;
   const agedFromAdmission = pending.filter(x => !x.docSubmit && !x.discharge).length;
-  const statusSum = data.filter(x => isDenied(x.status)).length + data.filter(x => isValidClosed(x.status)).length + pending.length + data.filter(x => x.status === 'Cancelled').length;
+  const deniedAll = data.filter(x => isDeniedClaim(x)).length;
+  const validAll = data.filter(x => isValidClosed(x.status) && !isDeniedClaim(x)).length;
+  const statusSum = deniedAll + validAll + pending.length + data.filter(x => x.status === 'Cancelled').length;
   const r = (v: number) => Math.round(v);
   const reconciliation: ReconCheck[] = [
     { name: 'Leakage buckets are mutually exclusive', pass: leakTotal <= totalClaimed + 1, detail: `Leakage ₹${r(leakTotal).toLocaleString('en-IN')} ≤ Billed ₹${r(totalClaimed).toLocaleString('en-IN')}; denied claims counted only in Denied bucket` },
@@ -267,7 +269,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     if (!tpaLeak[k]) tpaLeak[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, shortfall: 0, denied: 0, denVal: 0 };
     const t = tpaLeak[k];
     t.cnt++; if (x.status === 'Cancelled') t.cnc++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt; t.shortfall += x.shortfall;
-    if (isDenied(x.status)) { t.denied++; t.denVal += x.claimedAmt; }
+    if (isDeniedClaim(x)) { t.denied++; t.denVal += x.claimedAmt; }
   });
 
   return {
