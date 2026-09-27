@@ -56,7 +56,7 @@ export function PayerTab() {
           const score = (t.approvalRate * 0.4) + (t.collRate * 0.4) + ((100 - t.denialRate) * 0.2);
           const grade = score > 80 ? 'A' : score > 65 ? 'B' : score > 50 ? 'C' : 'D';
           const gc = grade === 'A' ? 'good' : grade === 'B' ? 'warning' : 'critical';
-          return [shortP(t.k), t.v.cnt.toString(), fmt(t.v.claimed),
+          return [shortP(t.k), (t.uniquePatients || 0).toLocaleString(), t.v.cnt.toString(), fmt(t.v.claimed),
             <span style={{ color: t.approvalRate > 75 ? '#15803D' : t.approvalRate > 60 ? '#854D0E' : '#9B1C1C' }}>{fN(t.approvalRate)}%</span>,
             fN(t.collRate) + '%',
             <span style={{ color: t.denialRate > 20 ? '#9B1C1C' : t.denialRate > 10 ? '#854D0E' : '#15803D' }}>{fN(t.denialRate)}%</span>,
