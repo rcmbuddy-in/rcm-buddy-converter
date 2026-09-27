@@ -34,8 +34,7 @@ export function DSOTab() {
   const periodDays = Math.max(1, Math.round((maxD.getTime() - minD.getTime()) / 86400000));
 
   // AR = pending value
-  const PENDING = isPendingStatus;
-  const arVal = sm(d.filter(x => PENDING(x.status)).map(x => x.claimedAmt));
+  const arVal = sm(d.filter(x => isPendingClaim(x)).map(arOutstanding));
   const dso = totalClaimed ? (arVal / totalClaimed) * periodDays : 0;
 
   // Settled-only TAT for velocity
