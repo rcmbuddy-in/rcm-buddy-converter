@@ -12,7 +12,7 @@ export function ARTab() {
   if (!globalData) return null;
   const { data: d, n, ageBuckets, totalClaimed } = globalData;
 
-  const pending = d.filter(x => isPendingStatus(x.status));
+  const pending = d.filter(x => isPendingClaim(x));
   const pendVal = globalData.pendingAR.val;
   const arToRev = pct(pendVal, totalClaimed);
 
