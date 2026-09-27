@@ -11,7 +11,8 @@ export function PayerTab() {
   if (!globalData) return null;
   const { n, totalClaimed, tpaArr } = globalData;
 
-  const byVol = [...tpaArr].sort((a, b) => b.v.claimed - a.v.claimed);
+  // Ranked by unique patients first, then billed value
+  const byVol = [...tpaArr].sort((a, b) => ((b.uniquePatients || 0) - (a.uniquePatients || 0)) || (b.v.claimed - a.v.claimed));
   const byApprH = [...tpaArr].sort((a, b) => b.approvalRate - a.approvalRate);
   const byApprL = [...tpaArr].sort((a, b) => a.approvalRate - b.approvalRate);
   const byNetColl = [...tpaArr].sort((a, b) => b.collRate - a.collRate);
