@@ -187,6 +187,7 @@ export function CorporateTab() {
             return [
               k,
               v.insurer,
+              v.patients.size.toLocaleString(),
               v.cnt.toString(),
               fmt(v.claimed),
               <span style={{ color: aR > 75 ? '#15803D' : aR > 60 ? '#854D0E' : '#9B1C1C' }}>{fN(aR)}%</span>,
