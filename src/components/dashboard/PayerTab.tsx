@@ -25,7 +25,7 @@ export function PayerTab() {
       <SectionHeading title="Payer Performance" tag="TPA/Insurer Benchmarking" />
       <MetricGrid>
         <MetricCard label={`Active ${label}s`} value={Object.keys(globalData.tpaMap).length.toString()} subtitle="Unique payers in data" />
-        <MetricCard label="Top Payer by Volume" value={byVol[0] ? shortP(byVol[0].k) : '—'} subtitle={byVol[0] ? byVol[0].v.cnt + ' claims (' + fN(pct(byVol[0].v.cnt, n)) + '%)' : ''} />
+        <MetricCard label="Top Payer by Patients" value={byVol[0] ? shortP(byVol[0].k) : '—'} subtitle={byVol[0] ? (byVol[0].uniquePatients || 0) + ' unique patients · ' + byVol[0].v.cnt + ' claims' : ''} highlighted />
         <MetricCard label="Best Approval Rate" value={fN(byApprH[0]?.approvalRate || 0) + '%'} subtitle={byApprH[0] ? shortP(byApprH[0].k) : ''} />
         <MetricCard label="Worst Approval Rate" value={fN(byApprL[0]?.approvalRate || 0) + '%'} subtitle={byApprL[0] ? shortP(byApprL[0].k) : ''} />
         <MetricCard label="Payer Concentration" value={fN(pct(byVol[0]?.v.claimed || 0, totalClaimed)) + '%'} subtitle="Largest payer share of billed" />
