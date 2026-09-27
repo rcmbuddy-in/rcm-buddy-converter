@@ -50,8 +50,8 @@ export function PayerTab() {
         </ChartCard>
       </ChartGrid>
 
-      <DataTable title="Full Payer Scorecard" subtitle="All metrics per TPA/Insurer · Graded A–D"
-        headers={[label, 'Claims', 'Billed', 'Approval %', 'Net Coll %', 'Denial %', 'Avg TAT', 'Grade']}
+      <DataTable title="Full Payer Scorecard" subtitle="Ranked by unique patients, then billed value · Graded A–D"
+        headers={[label, 'Unique Patients', 'Claims', 'Billed', 'Approval %', 'Net Coll %', 'Denial %', 'Avg TAT', 'Grade']}
         rows={byVol.slice(0, 15).map(t => {
           const score = (t.approvalRate * 0.4) + (t.collRate * 0.4) + ((100 - t.denialRate) * 0.2);
           const grade = score > 80 ? 'A' : score > 65 ? 'B' : score > 50 ? 'C' : 'D';
