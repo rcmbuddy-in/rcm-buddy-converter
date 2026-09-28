@@ -1,3 +1,4 @@
+import { settledCollRate } from '@/lib/rcm-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
@@ -23,7 +24,7 @@ export function OverviewTab() {
   const settled = d.filter(x => x.status === 'Settled');
   const denied = d.filter(x => isDeniedClaim(x));
   const approvalRate = pct(totalApproved, totalClaimed);
-  const netCollRate = pct(totalSettled, totalApproved);
+  const netCollRate = settledCollRate(globalData.data);
   const tatVals = d.map(x => payerTat(x)).filter((v): v is number => v !== null);
   const avgTAT = avg(tatVals);
   const nonCancelled = d.filter(x => x.status !== 'Cancelled').length;

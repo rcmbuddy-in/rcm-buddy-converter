@@ -18,6 +18,13 @@ export const isPendingClaim = (x: { status: string; approvedAmt: number; settled
 export const arOutstanding = (x: { approvedAmt: number; settledAmt: number; tdsAmt: number; copay: number }) =>
   Math.max(0, x.approvedAmt - x.settledAmt - x.tdsAmt - x.copay);
 
+/** Net collection rate on closed (Settled) claims: (Settled + TDS + Copay) ÷ Approved. */
+export const settledCollRate = (rows: { status: string; approvedAmt: number; settledAmt: number; tdsAmt: number; copay: number }[]) => {
+  let a = 0, r = 0;
+  rows.forEach(x => { if (x.status === 'Settled') { a += x.approvedAmt; r += x.settledAmt + x.tdsAmt + x.copay; } });
+  return a > 0 ? (r / a) * 100 : 0;
+};
+
 /** Unique-patient key for ranking payers/corporates. */
 export const patientKey = (x: ClaimRecord) =>
   (x.patientId || x.patientName || '').trim().toLowerCase() ||

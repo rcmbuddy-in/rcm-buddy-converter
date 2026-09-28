@@ -1,4 +1,4 @@
-import { isDeniedClaim, patientKey } from '@/lib/rcm-data';
+import { isDeniedClaim, patientKey, settledCollRate } from '@/lib/rcm-data';
 import { useState, useMemo } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useChartPrefs } from '@/contexts/ChartPrefsContext';
@@ -58,7 +58,7 @@ export function CorporateTab() {
   const tatVals = corpData.map(x => payerTat(x)).filter((v): v is number => v !== null);
 
   const approvalRate = pct(totalApproved, totalClaimed);
-  const collRate = pct(totalSettled, totalApproved);
+  const collRate = settledCollRate(corpData);
   const denialRate = pct(denied.length, corpData.filter(x => x.status !== 'Cancelled').length);
   const avgTAT = avg(tatVals);
   const avgClaim = n > 0 ? totalClaimed / n : 0;

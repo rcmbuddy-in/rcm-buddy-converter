@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { SectionHeading } from './SectionHeading';
 import { fmt, fN, pct, avg, ddiff, sm, shortP, score, scoreColor } from '@/lib/rcm-utils';
-import { isPendingClaim, isDeniedClaim, arOutstanding } from '@/lib/rcm-data';
+import { isPendingClaim, isDeniedClaim, arOutstanding, settledCollRate } from '@/lib/rcm-data';
 
 export function AIReportTab() {
   const { globalData } = useDashboard();
@@ -21,7 +21,7 @@ export function AIReportTab() {
 
     const apprR = pct(totalApproved, totalClaimed);
     const dedR = pct(totalClaimed - totalApproved, totalClaimed);
-    const ncR = pct(totalSettled, totalApproved);
+    const ncR = settledCollRate(d);
     const denR = pct(denied.length, n);
     const paDenR = pct(paDenied.length, paTotal.length);
 
