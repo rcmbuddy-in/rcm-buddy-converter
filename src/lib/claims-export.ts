@@ -248,7 +248,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
     ['Financial', 'Gross Billed', 'KPI Summary', 'B3', '=SUM(Claims!G2:G{last})', 'Same as Total Claimed'],
     ['Financial', 'Net Collected', 'KPI Summary', 'B5', '=SUM(Claims!M2:M{last})', 'Same as Total Settled'],
     ['Financial', 'EBITDA Impact (proxy)', 'KPI Summary', 'B16', '=B5-B9', 'Settled minus TDS'],
-    ['Financial', 'Gross→Net Leakage', 'KPI Summary', 'B3,B5', '=B3-B5', 'Claimed − Settled'],
+    ['Financial', 'Billed − Collected Gap', 'KPI Summary', 'B3,B5', '=B3-B5', 'Claimed − Settled; includes open AR, TDS and copay, so it is not pure leakage (see Revenue Leakage sheet)'],
     ['Financial', 'Approval Rate', 'KPI Summary', 'B12', '=IFERROR(B4/B3,0)', 'Same as Overview'],
     ['Financial', 'Payer Deduction %', 'KPI Summary', 'B3,B4,B6', '=IFERROR((B3-B4-B6)/B3,0)', '(Claimed − Approved − Shortfall) ÷ Claimed'],
     ['Financial', 'Net Collection Rate', 'KPI Summary', 'B13', '=IFERROR(B5/B4,0)', 'Same as Overview'],
