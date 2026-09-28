@@ -1,3 +1,4 @@
+import { settledCollRate } from './rcm-data';
 import { ClaimRecord, GlobalData } from './rcm-data';
 import { sm, pct, avg, ddiff, fmt, fN , payerTat } from './rcm-utils';
 
@@ -31,7 +32,7 @@ function ageDays(d: Date | null): number {
 export function computeHealthScore(g: GlobalData): HealthScore {
   const { data, totalClaimed, totalApproved, totalSettled, ageBuckets } = g;
   const approvalRate = pct(totalApproved, totalClaimed);
-  const collRate = pct(totalSettled, totalApproved);
+  const collRate = settledCollRate(data);
   const denied = data.filter(x => isDenied(x.status));
   const denialRate = pct(denied.length, data.filter(x => x.status !== 'Cancelled').length);
   const arOver90 = (ageBuckets['91-180']?.val || 0) + (ageBuckets['180+']?.val || 0);
@@ -192,7 +193,7 @@ export function getFinancialInsights(g: GlobalData): Insight[] {
   const { data, totalClaimed, totalApproved, totalSettled, totalShortfall, totalDiscount, totalCopay, totalTDS } = g;
   const insights: Insight[] = [];
   const approvalRate = pct(totalApproved, totalClaimed);
-  const collRate = pct(totalSettled, totalApproved);
+  const collRate = settledCollRate(data);
   const grossLeak = totalClaimed - totalApproved;
 
   // Gross vs Net

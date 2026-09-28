@@ -5,6 +5,7 @@ import { DataTable } from './DataTable';
 import { SectionHeading } from './SectionHeading';
 import { InsightList } from './InsightCard';
 import { getFinancialInsights } from '@/lib/insights-engine';
+import { settledCollRate } from '@/lib/rcm-data';
 import { fmt, fN, pct, median, getBadgeType, shortP } from '@/lib/rcm-utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -17,7 +18,7 @@ export function FinancialTab() {
   const dedP = pct(totalClaimed - totalApproved, totalClaimed);
   // Net collection measured on closed (Settled) claims only — open claims haven't had a chance to pay yet
   const closed = d.filter(x => x.status === 'Settled');
-  const ncR = pct(closed.reduce((a, x) => a + x.settledAmt + x.tdsAmt + x.copay, 0), closed.reduce((a, x) => a + x.approvedAmt, 0));
+  const ncR = settledCollRate(d);
   const sfP = pct(totalShortfall, totalClaimed);
   const discP = pct(totalDiscount, totalClaimed);
   const tdsP = pct(totalTDS, totalSettled + totalTDS);
