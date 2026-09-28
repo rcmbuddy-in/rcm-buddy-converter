@@ -349,7 +349,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
     ['Corporate', 'Corporate Billed', 'Claims', 'G2:G{last}, U2:U{last}', 'SUMIF where Policy Holder is non-blank', 'Billed amount for corporate claims'],
     ['Corporate', 'Corporate Collected', 'Claims', 'M2:M{last}, U2:U{last}', 'SUMIF where Policy Holder is non-blank', 'Settled amount for corporate claims'],
     ['Corporate', 'Approval Rate (Corp)', 'Claims', 'G2:G{last}, H2:H{last}, U2:U{last}', 'SUMIF(Approved)÷SUMIF(Claimed) for corporate', 'Corporate-specific approval %'],
-    ['Corporate', 'Net Collection Rate (Corp)', 'Claims', 'H2:H{last}, M2:M{last}, U2:U{last}', 'SUMIF(Settled)÷SUMIF(Approved) for corporate', 'Corporate-specific collection %'],
+    ['Corporate', 'Net Collection Rate (Corp)', 'Claims', 'H2:H{last}, M2:M{last}, U2:U{last}', '(Settled + TDS + Copay) ÷ Approved on Settled corporate claims', 'Corporate-specific collection %'],
     ['Corporate', 'Denial Rate (Corp)', 'Claims', 'O2:O{last}, U2:U{last}', 'COUNTIF(Denied)÷COUNTA for corporate', 'Corporate-specific denial %'],
     ['Corporate', 'Top Corporates by Volume', 'Claims', 'U2:U{last}', 'COUNTIF by Policy Holder', 'Horizontal bar of top policy holders'],
     ['Corporate', 'Corporate Monthly Trend', 'Claims', 'B2:G{last}, U2:U{last}', 'Monthly COUNTIF/SUMIF filtered by corporate', 'Line/bar of corporate monthly data'],

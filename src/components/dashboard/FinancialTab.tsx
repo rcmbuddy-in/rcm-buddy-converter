@@ -17,7 +17,6 @@ export function FinancialTab() {
   const apR = pct(totalApproved, totalClaimed);
   const dedP = pct(totalClaimed - totalApproved, totalClaimed);
   // Net collection measured on closed (Settled) claims only — open claims haven't had a chance to pay yet
-  const closed = d.filter(x => x.status === 'Settled');
   const ncR = settledCollRate(d);
   const sfP = pct(totalShortfall, totalClaimed);
   const discP = pct(totalDiscount, totalClaimed);
