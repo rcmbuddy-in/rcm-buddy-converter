@@ -130,7 +130,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
     ['Total Patient Paid (₹)', global.totalPatientCollected, `=SUMPRODUCT((Claims!L2:L${lastRow}>=Claims!I2:I${lastRow})*(Claims!L2:L${lastRow}>0)*Claims!L2:L${lastRow}+(1-(Claims!L2:L${lastRow}>=Claims!I2:I${lastRow})*(Claims!L2:L${lastRow}>0))*(Claims!L2:L${lastRow}+Claims!I2:I${lastRow}))`, 'Patient collection; copay counted once (if Patient Paid ≥ Copay it already includes copay)'],
     [],
     ['Approval Rate %', '', `=IFERROR(B4/B3,0)`, 'Total Approved ÷ Total Claimed'],
-    ['Net Collection %', '', `=IFERROR((SUMIFS(Claims!M2:M${last},Claims!O2:O${last},"Settled")+SUMIFS(Claims!N2:N${last},Claims!O2:O${last},"Settled")+SUMIFS(Claims!I2:I${last},Claims!O2:O${last},"Settled"))/SUMIFS(Claims!H2:H${last},Claims!O2:O${last},"Settled"),0)`, '(Settled + TDS + Copay) ÷ Approved, Settled claims only'],
+    ['Net Collection %', '', `=IFERROR((SUMIFS(Claims!M2:M${lastRow},Claims!O2:O${lastRow},"Settled")+SUMIFS(Claims!N2:N${lastRow},Claims!O2:O${lastRow},"Settled")+SUMIFS(Claims!I2:I${lastRow},Claims!O2:O${lastRow},"Settled"))/SUMIFS(Claims!H2:H${lastRow},Claims!O2:O${lastRow},"Settled"),0)`, '(Settled + TDS + Copay) ÷ Approved, Settled claims only'],
     ['Net Yield %', '', `=IFERROR(B5/B3,0)`, 'Total Settled ÷ Total Claimed (cash realised per ₹ billed)'],
     ['Avg Claim Value (₹)', '', `=IFERROR(B3/B2,0)`, 'Total Claimed ÷ Total Claims'],
     ['Avg Realisation per Claim (₹)', '', `=IFERROR(B5/B2,0)`, 'Total Settled ÷ Total Claims'],

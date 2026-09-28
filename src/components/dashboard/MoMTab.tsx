@@ -15,6 +15,8 @@ interface MonthBucket {
   key: string;
   label: string;
   cnt: number;
+  closedApproved: number;
+  closedRealised: number;
   claimed: number;
   approved: number;
   settled: number;
