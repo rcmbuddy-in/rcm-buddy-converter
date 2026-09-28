@@ -194,10 +194,11 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const tpaMap: Record<string, any> = {};
   data.forEach(x => {
     const k = x.tpa;
-    if (!tpaMap[k]) tpaMap[k] = { cnc: 0, cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [] as number[], patients: new Set<string>(), uniquePatients: 0 };
+    if (!tpaMap[k]) tpaMap[k] = { cnc: 0, cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [] as number[], closedApproved: 0, closedRealised: 0, patients: new Set<string>(), uniquePatients: 0 };
     const t = tpaMap[k];
     t.cnt++; if (x.status === 'Cancelled') t.cnc++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt;
     if (isDeniedClaim(x)) t.denied++;
+    if (x.status === 'Settled') { t.closedApproved += x.approvedAmt; t.closedRealised += x.settledAmt + x.tdsAmt + x.copay; }
     const pk = patientKey(x);
     if (pk) t.patients.add(pk);
     const tat = payerTat(x);
@@ -206,12 +207,12 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   Object.values(tpaMap).forEach((t: any) => { t.uniquePatients = t.patients.size; });
 
   const tpaArr = Object.entries(tpaMap)
-    .filter(e => e[1].cnt >= 15)
     .map(([k, v]) => ({
       k, v,
       uniquePatients: v.uniquePatients,
       approvalRate: pct(v.approved, v.claimed),
-      collRate: pct(v.settled, v.approved),
+      collRate: pct(v.closedRealised, v.closedApproved),
+      lowVolume: v.cnt < 15,
       denialRate: pct(v.denied, v.cnt - v.cnc),
       avgTAT: avg(v.tatVals || [])
     }))

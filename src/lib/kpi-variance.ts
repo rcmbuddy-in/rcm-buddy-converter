@@ -18,7 +18,7 @@ export const KPIS: KpiDef[] = [
   { id: 'approved', label: 'Total Approved', kind: 'money', higherIsBetter: true, target: 0, benchmark: 0, calc: g => g.totalApproved },
   { id: 'collected', label: 'Total Collected', kind: 'money', higherIsBetter: true, target: 0, benchmark: 0, calc: g => g.totalSettled },
   { id: 'approvalRate', label: 'Claim Approval Rate', kind: 'pct', higherIsBetter: true, target: 80, benchmark: 75, calc: g => pct(g.totalApproved, g.totalClaimed) },
-  { id: 'netColl', label: 'Net Collection Rate', kind: 'pct', higherIsBetter: true, target: 90, benchmark: 85, calc: g => pct(g.totalSettled, g.totalApproved) },
+  { id: 'netColl', label: 'Net Collection Rate', kind: 'pct', higherIsBetter: true, target: 90, benchmark: 85, calc: g => { const c = g.data.filter((x: any) => x.status === 'Settled'); return pct(c.reduce((a: number, x: any) => a + x.settledAmt + x.tdsAmt + x.copay, 0), c.reduce((a: number, x: any) => a + x.approvedAmt, 0)); } },
   { id: 'tat', label: 'Payer TAT', kind: 'days', higherIsBetter: false, target: 30, benchmark: 45, calc: tat },
   { id: 'denialRate', label: 'Denial Rate', kind: 'pct', higherIsBetter: false, target: 8, benchmark: 10, calc: g => pct(deniedCnt(g), nonCancelled(g)) },
   { id: 'pendingAR', label: 'Pending AR', kind: 'money', higherIsBetter: false, target: 0, benchmark: 0, calc: g => g.pendingAR.val },

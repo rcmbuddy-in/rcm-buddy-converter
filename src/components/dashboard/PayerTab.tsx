@@ -15,7 +15,7 @@ export function PayerTab() {
   const byVol = [...tpaArr].sort((a, b) => ((b.uniquePatients || 0) - (a.uniquePatients || 0)) || (b.v.claimed - a.v.claimed));
   const byApprH = [...tpaArr].sort((a, b) => b.approvalRate - a.approvalRate);
   const byApprL = [...tpaArr].sort((a, b) => a.approvalRate - b.approvalRate);
-  const byNetColl = [...tpaArr].sort((a, b) => b.collRate - a.collRate);
+  const byNetColl = [...tpaArr].filter(t => !t.lowVolume).sort((a, b) => b.collRate - a.collRate);
   const bySettled = [...tpaArr].sort((a, b) => b.v.settled - a.v.settled).slice(0, 8);
 
   const label = groupBy === 'insurer' ? 'Insurer' : 'TPA';
@@ -50,13 +50,13 @@ export function PayerTab() {
         </ChartCard>
       </ChartGrid>
 
-      <DataTable title="Full Payer Scorecard" subtitle="Ranked by unique patients, then billed value · Graded A–D"
+      <DataTable title="Full Payer Scorecard" subtitle="Ranked by unique patients, then billed value · Graded A–D · * fewer than 15 claims, rates less reliable"
         headers={[label, 'Unique Patients', 'Claims', 'Billed', 'Approval %', 'Net Coll %', 'Denial %', 'Avg TAT', 'Grade']}
         rows={byVol.slice(0, 15).map(t => {
           const score = (t.approvalRate * 0.4) + (t.collRate * 0.4) + ((100 - t.denialRate) * 0.2);
           const grade = score > 80 ? 'A' : score > 65 ? 'B' : score > 50 ? 'C' : 'D';
           const gc = grade === 'A' ? 'good' : grade === 'B' ? 'warning' : 'critical';
-          return [shortP(t.k), (t.uniquePatients || 0).toLocaleString(), t.v.cnt.toString(), fmt(t.v.claimed),
+          return [shortP(t.k) + (t.lowVolume ? ' *' : ''), (t.uniquePatients || 0).toLocaleString(), t.v.cnt.toString(), fmt(t.v.claimed),
             <span style={{ color: t.approvalRate > 75 ? '#15803D' : t.approvalRate > 60 ? '#854D0E' : '#9B1C1C' }}>{fN(t.approvalRate)}%</span>,
             fN(t.collRate) + '%',
             <span style={{ color: t.denialRate > 20 ? '#9B1C1C' : t.denialRate > 10 ? '#854D0E' : '#15803D' }}>{fN(t.denialRate)}%</span>,

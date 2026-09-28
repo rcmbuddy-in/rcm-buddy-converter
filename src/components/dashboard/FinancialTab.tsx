@@ -15,7 +15,9 @@ export function FinancialTab() {
 
   const apR = pct(totalApproved, totalClaimed);
   const dedP = pct(totalClaimed - totalApproved, totalClaimed);
-  const ncR = pct(totalSettled, totalApproved);
+  // Net collection measured on closed (Settled) claims only — open claims haven't had a chance to pay yet
+  const closed = d.filter(x => x.status === 'Settled');
+  const ncR = pct(closed.reduce((a, x) => a + x.settledAmt + x.tdsAmt + x.copay, 0), closed.reduce((a, x) => a + x.approvedAmt, 0));
   const sfP = pct(totalShortfall, totalClaimed);
   const discP = pct(totalDiscount, totalClaimed);
   const tdsP = pct(totalTDS, totalSettled + totalTDS);
@@ -101,7 +103,7 @@ export function FinancialTab() {
         <MetricCard label="Gross Billed" value={fmt(totalClaimed)} subtitle="Top of revenue funnel" highlighted />
         <MetricCard label="Net Collected" value={fmt(totalSettled)} subtitle={fN(pct(totalSettled, totalClaimed)) + '% of gross'} />
         <MetricCard label="Gross Payer Realisation" value={fmt(ebitdaProxy)} subtitle="Settled + TDS credit ÷ billed" badge={{ type: getBadgeType(pct(ebitdaProxy, totalClaimed), 70, 55), text: fN(pct(ebitdaProxy, totalClaimed)) + '% yield' }} />
-        <MetricCard label="Gross→Net Leakage" value={fmt(netLeak)} subtitle={fN(pct(netLeak, totalClaimed)) + '% of billed lost'} badge={{ type: 'warning', text: 'Track' }} />
+        <MetricCard label="Billed − Collected Gap" value={fmt(netLeak)} subtitle={fN(pct(netLeak, totalClaimed)) + '% of billed · incl. open AR, TDS & copay (not all loss)'} badge={{ type: 'warning', text: 'Track' }} />
         <MetricCard label="Approval Rate" value={fN(apR) + '%'} subtitle="Approved ÷ Billed" badge={{ type: getBadgeType(apR, 75, 60), text: fN(apR) + '%' }} />
         <MetricCard label="Payer Deduction %" value={fN(dedP) + '%'} subtitle={fmt(grossLeak) + ' deducted by payers'} />
         <MetricCard label="Net Collection Rate" value={fN(ncR) + '%'} subtitle="Settled ÷ Approved" badge={{ type: getBadgeType(ncR, 85, 70), text: ncR > 85 ? 'Strong' : 'Needs Attention' }} />
