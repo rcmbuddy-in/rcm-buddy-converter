@@ -381,16 +381,15 @@ export function exportClaimsWorkbook(global: GlobalData) {
   ws7['!freeze'] = { xSplit: 0, ySplit: 1 } as any;
 
   // ===== Sheet 8: Money Chase (Billed − Collected gap by bucket and owner) =====
-  const today = new Date();
   const gapList: any[][] = [['Patient', 'IP / UHID', 'TPA', 'Insurer', 'Admission', 'Status', 'Bucket', 'Type', 'Owner', 'Amount (₹)', 'Next Action']];
   data.forEach(x => {
-    Object.entries(allocateGap(x, today)).forEach(([id, v]) => {
+    Object.entries(allocateGap(x, new Date())).forEach(([id, v]) => {
       const b = GAP_BUCKETS.find(g => g.id === id)!;
       gapList.push([x.patientName, x.patientId, x.tpa, x.insurer, x.admission ? x.admission.toISOString().slice(0, 10) : '', x.status, b.label, b.kind === 'recoverable' ? 'Recoverable' : 'Written-off', b.owner, Math.round((v || 0) * 100) / 100, b.action]);
     });
   });
   const gl = gapList.length;
-  const gs = computeGapBuckets(data, today);
+  const gs = computeGapBuckets(data);
   const chase: any[][] = [
     ['Bucket', 'Type', 'Owner', 'Claims', 'Amount (₹)', 'Formula', 'Rule', 'Next Action'],
     ...GAP_BUCKETS.map(b => [b.label, b.kind === 'recoverable' ? 'Recoverable' : 'Written-off', b.owner,
