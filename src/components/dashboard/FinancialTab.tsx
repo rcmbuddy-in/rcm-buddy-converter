@@ -6,6 +6,7 @@ import { SectionHeading } from './SectionHeading';
 import { InsightList } from './InsightCard';
 import { getFinancialInsights } from '@/lib/insights-engine';
 import { settledCollRate } from '@/lib/rcm-data';
+import { computeGapBuckets } from '@/lib/gap-buckets';
 import { fmt, fN, pct, median, getBadgeType, shortP } from '@/lib/rcm-utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -29,6 +30,7 @@ export function FinancialTab() {
   const grossLeak = totalClaimed - totalApproved;
   const netLeak = totalClaimed - totalSettled;
   const insights = getFinancialInsights(globalData);
+  const gap = computeGapBuckets(d);
 
   // Waterfall
   const avgAppr = totalApproved / n;
@@ -109,6 +111,20 @@ export function FinancialTab() {
         <MetricCard label="Net Collection Rate" value={fN(ncR) + '%'} subtitle="Settled ÷ Approved" badge={{ type: getBadgeType(ncR, 85, 70), text: ncR > 85 ? 'Strong' : 'Needs Attention' }} />
         <MetricCard label="Shortfall Rate" value={fN(sfP) + '%'} subtitle={fmt(totalShortfall) + ' total shortfall'} />
       </MetricGrid>
+
+      <SectionHeading title="Where the Billed − Collected Gap Sits" tag="Chase the Money" />
+      <MetricGrid>
+        <MetricCard label="Recoverable" value={fmt(gap.recoverable)} subtitle={fN(pct(gap.recoverable, gap.total)) + '% of gap · can still be collected'} badge={{ type: 'good', text: 'Chase' }} highlighted />
+        <MetricCard label="Written-off" value={fmt(gap.writtenOff)} subtitle={fN(pct(gap.writtenOff, gap.total)) + '% of gap · lost, fix at source'} badge={{ type: 'critical', text: 'Prevent' }} />
+      </MetricGrid>
+      <DataTable title="Gap by Bucket and Owner" subtitle={'Each claim\'s billed − settled amount is split once, with no double counting' + (gap.overpaidRows ? ` · ${gap.overpaidRows} claims settled above billed excluded` : '')}
+        headers={['Bucket', 'Type', 'Owner', 'Claims', 'Amount', '% of Gap', 'Next Action']}
+        rows={[...gap.rows].filter(r => r.value > 0).sort((a, b) => (a.kind === b.kind ? b.value - a.value : a.kind === 'recoverable' ? -1 : 1)).map(r => [
+          <strong>{r.label}</strong>,
+          <span className={`badge-${r.kind === 'recoverable' ? 'good' : 'critical'} text-[10px] font-bold px-2 py-0.5 rounded-full`}>{r.kind === 'recoverable' ? 'Recoverable' : 'Written-off'}</span>,
+          r.owner, r.claims.toLocaleString(), fmt(r.value), fN(pct(r.value, gap.total)) + '%', r.action,
+        ])}
+      />
 
       <ChartGrid>
         <ChartCard title="Average Claim Value Waterfall" subtitle="From billed to net collected per claim" height="300px">

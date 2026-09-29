@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { ClaimRecord, GlobalData } from './rcm-data';
+import { GAP_BUCKETS, allocateGap, computeGapBuckets } from './gap-buckets';
 
 const DENIED = ['Pre Auth Denied', 'Discharge Denied', 'Claim Denied', 'Reconsideration Submitted', 'Enhancement Denied'];
 const VALID_CLOSED = ['Settled', 'Settlement Initiated', 'Claim Approved', 'Processing', 'Enhancement Approved'];
@@ -248,7 +249,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
     ['Financial', 'Gross Billed', 'KPI Summary', 'B3', '=SUM(Claims!G2:G{last})', 'Same as Total Claimed'],
     ['Financial', 'Net Collected', 'KPI Summary', 'B5', '=SUM(Claims!M2:M{last})', 'Same as Total Settled'],
     ['Financial', 'EBITDA Impact (proxy)', 'KPI Summary', 'B16', '=B5-B9', 'Settled minus TDS'],
-    ['Financial', 'Billed − Collected Gap', 'KPI Summary', 'B3,B5', '=B3-B5', 'Claimed − Settled; includes open AR, TDS and copay, so it is not pure leakage (see Revenue Leakage sheet)'],
+    ['Financial', 'Billed − Collected Gap', 'KPI Summary', 'B3,B5', '=B3-B5', 'Claimed − Settled; split into recoverable vs written-off by owner on the Money Chase sheet'],
     ['Financial', 'Approval Rate', 'KPI Summary', 'B12', '=IFERROR(B4/B3,0)', 'Same as Overview'],
     ['Financial', 'Payer Deduction %', 'KPI Summary', 'B3,B4,B6', '=IFERROR((B3-B4-B6)/B3,0)', '(Claimed − Approved − Shortfall) ÷ Claimed'],
     ['Financial', 'Net Collection Rate', 'KPI Summary', 'B13', '=IFERROR((SUMIFS(Claims!M2:M{last},Claims!O2:O{last},"Settled")+SUMIFS(Claims!N2:N{last},Claims!O2:O{last},"Settled")+SUMIFS(Claims!I2:I{last},Claims!O2:O{last},"Settled"))/SUMIFS(Claims!H2:H{last},Claims!O2:O{last},"Settled"),0)', 'Same as Overview'],
@@ -379,6 +380,33 @@ export function exportClaimsWorkbook(global: GlobalData) {
   ws7['!cols'] = [{ wch: 22 }, { wch: 38 }, { wch: 18 }, { wch: 22 }, { wch: 55 }, { wch: 55 }];
   ws7['!freeze'] = { xSplit: 0, ySplit: 1 } as any;
 
+  // ===== Sheet 8: Money Chase (Billed − Collected gap by bucket and owner) =====
+  const today = new Date();
+  const gapList: any[][] = [['Patient', 'IP / UHID', 'TPA', 'Insurer', 'Admission', 'Status', 'Bucket', 'Type', 'Owner', 'Amount (₹)', 'Next Action']];
+  data.forEach(x => {
+    Object.entries(allocateGap(x, today)).forEach(([id, v]) => {
+      const b = GAP_BUCKETS.find(g => g.id === id)!;
+      gapList.push([x.patientName, x.patientId, x.tpa, x.insurer, x.admission ? x.admission.toISOString().slice(0, 10) : '', x.status, b.label, b.kind === 'recoverable' ? 'Recoverable' : 'Written-off', b.owner, Math.round((v || 0) * 100) / 100, b.action]);
+    });
+  });
+  const gl = gapList.length;
+  const gs = computeGapBuckets(data, today);
+  const chase: any[][] = [
+    ['Bucket', 'Type', 'Owner', 'Claims', 'Amount (₹)', 'Formula', 'Rule', 'Next Action'],
+    ...GAP_BUCKETS.map(b => [b.label, b.kind === 'recoverable' ? 'Recoverable' : 'Written-off', b.owner,
+      { f: `COUNTIF(G${2 + GAP_BUCKETS.length + 6}:G${gl + GAP_BUCKETS.length + 6},"${b.label}")` },
+      { f: `SUMIF(G${2 + GAP_BUCKETS.length + 6}:G${gl + GAP_BUCKETS.length + 6},"${b.label}",J${2 + GAP_BUCKETS.length + 6}:J${gl + GAP_BUCKETS.length + 6})` },
+      'SUMIF of claim list below', b.rule, b.action]),
+    ['Total Recoverable', '', '', '', { f: `SUMIF(B2:B${GAP_BUCKETS.length + 1},"Recoverable",E2:E${GAP_BUCKETS.length + 1})` }],
+    ['Total Written-off', '', '', '', { f: `SUMIF(B2:B${GAP_BUCKETS.length + 1},"Written-off",E2:E${GAP_BUCKETS.length + 1})` }],
+    ['Check: Billed − Settled (claims where billed ≥ settled)', '', '', '', { f: `SUMPRODUCT((Claims!G2:G${lastRow}>Claims!M2:M${lastRow})*(Claims!G2:G${lastRow}-Claims!M2:M${lastRow}))` }, gs.overpaidRows ? `${gs.overpaidRows} claims settled above billed are excluded` : ''],
+    [],
+    ['Claim-level list'],
+    ...gapList,
+  ];
+  const ws8 = XLSX.utils.aoa_to_sheet(chase);
+  ws8['!cols'] = [{ wch: 34 }, { wch: 14 }, { wch: 24 }, { wch: 12 }, { wch: 16 }, { wch: 24 }, { wch: 34 }, { wch: 14 }, { wch: 24 }, { wch: 14 }, { wch: 50 }];
+
   // ===== Build workbook =====
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws2, 'KPI Summary');
@@ -386,6 +414,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
   XLSX.utils.book_append_sheet(wb, ws3, 'AR Aging');
   XLSX.utils.book_append_sheet(wb, ws4, 'TPA Performance');
   XLSX.utils.book_append_sheet(wb, ws5, 'Revenue Leakage');
+  XLSX.utils.book_append_sheet(wb, ws8, 'Money Chase');
   XLSX.utils.book_append_sheet(wb, ws6, 'Definitions');
   XLSX.utils.book_append_sheet(wb, ws7, 'Source Mapping');
 
