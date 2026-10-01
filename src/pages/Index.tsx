@@ -19,6 +19,7 @@ import { DSOTab } from '@/components/dashboard/DSOTab';
 import { DataQualityModal } from '@/components/dashboard/DataQualityModal';
 import { VarianceTab } from '@/components/dashboard/VarianceTab';
 import { AuditTab } from '@/components/dashboard/AuditTab';
+import { PayerAuditTab } from '@/components/dashboard/PayerAuditTab';
 
 function DashboardContent() {
   const { globalData, activeTab } = useDashboard();
@@ -46,6 +47,7 @@ function DashboardContent() {
         {activeTab === 'denial' && <DenialTab />}
         {activeTab === 'ar' && <ARTab />}
         {activeTab === 'payer' && <PayerTab />}
+        {activeTab === 'payer-audit' && <PayerAuditTab />}
         {activeTab === 'mom' && <MoMTab />}
         {activeTab === 'corporate' && <CorporateTab />}
         {activeTab === 'cashflow' && <CashFlowTab />}
