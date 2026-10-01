@@ -94,6 +94,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setPeriodState('all');
     setDateFrom(undefined);
     setDateTo(undefined);
+    setPayerFilterState([]);
 
     if (report.fileRejected) {
       // do not commit any data; user must fix and re-upload
