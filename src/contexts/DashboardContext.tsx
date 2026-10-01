@@ -177,6 +177,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setDateTo(undefined);
     setDqReport(null);
     setDqModalOpen(false);
+    setPayerFilterState([]);
   }, []);
 
   const getGroupKey = useCallback((x: ClaimRecord) => {
@@ -186,7 +187,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   return (
     <DashboardContext.Provider value={{
       globalData, setGlobalData,
-      groupBy, setGroupBy,
+      groupBy, setGroupBy: handleGroupByChange,
       period, setPeriod: handlePeriodChange,
       activeTab, setActiveTab,
       availableYears,
@@ -203,6 +204,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       proceedAfterDQ,
       bypassDQ,
       allRecords,
+      payerFilter,
+      setPayerFilter: handlePayerFilter,
+      availablePayers: (() => {
+        const s = new Set<string>();
+        allRecords.forEach(d => s.add(groupBy === 'insurer' ? d.insurer : d.tpa));
+        return [...s].sort();
+      })(),
     }}>
       {children}
     </DashboardContext.Provider>
