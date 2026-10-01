@@ -24,6 +24,7 @@ const TABS = [
   { id: 'denial', label: 'Denial Analysis' },
   { id: 'ar', label: 'AR Management' },
   { id: 'payer', label: 'Payer Performance' },
+  { id: 'payer-audit', label: '🎯 Payer Audit' },
   { id: 'mom', label: '📈 MoM Trends' },
   { id: 'corporate', label: '🏢 Corporate' },
   { id: 'leakage', label: '⚠ Revenue Leakage', special: true },
