@@ -28,6 +28,9 @@ interface DashboardContextType {
   proceedAfterDQ: () => void;
   bypassDQ: () => void;
   allRecords: ClaimRecord[];
+  payerFilter: string[];
+  setPayerFilter: (payers: string[]) => void;
+  availablePayers: string[];
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -49,9 +52,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [dqReport, setDqReport] = useState<DQReport | null>(null);
   const [dqModalOpen, setDqModalOpen] = useState(false);
+  const [payerFilter, setPayerFilterState] = useState<string[]>([]);
 
-  const recompute = useCallback((records: ClaimRecord[], p: string, from?: Date, to?: Date) => {
+  const recompute = useCallback((records: ClaimRecord[], p: string, from?: Date, to?: Date, payers?: string[], gb: GroupBy = 'tpa') => {
     let filtered = records;
+    if (payers && payers.length > 0) {
+      const set = new Set(payers);
+      filtered = filtered.filter(d => set.has(gb === 'insurer' ? d.insurer : d.tpa));
+    }
     if (p !== 'all') {
       filtered = filtered.filter(d => d.admission && d.admission.getFullYear().toString() === p);
     }
@@ -72,7 +80,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         return admDay <= toDay;
       });
     }
-    console.log(`[RCM] Recompute: period=${p}, from=${from?.toISOString()}, to=${to?.toISOString()}, filtered=${filtered.length}/${records.length}`);
+    console.log(`[RCM] Recompute: period=${p}, from=${from?.toISOString()}, to=${to?.toISOString()}, payers=${payers?.length ?? 0}, filtered=${filtered.length}/${records.length}`);
     setGlobalData(computeGlobals(filtered));
   }, []);
 
@@ -86,6 +94,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setPeriodState('all');
     setDateFrom(undefined);
     setDateTo(undefined);
+    setPayerFilterState([]);
 
     if (report.fileRejected) {
       // do not commit any data; user must fix and re-upload
@@ -133,20 +142,32 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setPeriodState(p);
     setDateFrom(undefined);
     setDateTo(undefined);
-    recompute(allRecords, p);
-  }, [allRecords, recompute]);
+    recompute(allRecords, p, undefined, undefined, payerFilter, groupBy);
+  }, [allRecords, recompute, payerFilter, groupBy]);
 
   const handleDateFrom = useCallback((d: Date | undefined) => {
     setDateFrom(d);
     setPeriodState('all');
-    recompute(allRecords, 'all', d, dateTo);
-  }, [allRecords, dateTo, recompute]);
+    recompute(allRecords, 'all', d, dateTo, payerFilter, groupBy);
+  }, [allRecords, dateTo, recompute, payerFilter, groupBy]);
 
   const handleDateTo = useCallback((d: Date | undefined) => {
     setDateTo(d);
     setPeriodState('all');
-    recompute(allRecords, 'all', dateFrom, d);
-  }, [allRecords, dateFrom, recompute]);
+    recompute(allRecords, 'all', dateFrom, d, payerFilter, groupBy);
+  }, [allRecords, dateFrom, recompute, payerFilter, groupBy]);
+
+  const handlePayerFilter = useCallback((payers: string[]) => {
+    setPayerFilterState(payers);
+    recompute(allRecords, period, dateFrom, dateTo, payers, groupBy);
+  }, [allRecords, period, dateFrom, dateTo, groupBy, recompute]);
+
+  const handleGroupByChange = useCallback((g: GroupBy) => {
+    setGroupBy(g);
+    // Payer names differ between TPA and Insurer groupings — reset the filter
+    setPayerFilterState([]);
+    recompute(allRecords, period, dateFrom, dateTo, [], g);
+  }, [allRecords, period, dateFrom, dateTo, recompute]);
 
   const resetData = useCallback(() => {
     setGlobalData(null);
@@ -157,6 +178,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setDateTo(undefined);
     setDqReport(null);
     setDqModalOpen(false);
+    setPayerFilterState([]);
   }, []);
 
   const getGroupKey = useCallback((x: ClaimRecord) => {
@@ -166,7 +188,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   return (
     <DashboardContext.Provider value={{
       globalData, setGlobalData,
-      groupBy, setGroupBy,
+      groupBy, setGroupBy: handleGroupByChange,
       period, setPeriod: handlePeriodChange,
       activeTab, setActiveTab,
       availableYears,
@@ -183,6 +205,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       proceedAfterDQ,
       bypassDQ,
       allRecords,
+      payerFilter,
+      setPayerFilter: handlePayerFilter,
+      availablePayers: (() => {
+        const s = new Set<string>();
+        allRecords.forEach(d => s.add(groupBy === 'insurer' ? d.insurer : d.tpa));
+        return [...s].sort();
+      })(),
     }}>
       {children}
     </DashboardContext.Provider>

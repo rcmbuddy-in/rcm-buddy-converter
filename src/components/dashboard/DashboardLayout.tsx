@@ -139,8 +139,55 @@ function DatePickerButton({ date, onSelect, placeholder }: { date: Date | undefi
   );
 }
 
+function PayerFilterDropdown() {
+  const { groupBy, payerFilter, setPayerFilter, availablePayers } = useDashboard();
+  const [search, setSearch] = useState('');
+
+  const toggle = (name: string) => {
+    setPayerFilter(payerFilter.includes(name) ? payerFilter.filter(p => p !== name) : [...payerFilter, name]);
+  };
+  const shown = availablePayers.filter(p => p.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 border rounded-md text-xs font-medium bg-card cursor-pointer transition-colors",
+            payerFilter.length > 0 ? "border-rcm-500 text-rcm-700 font-semibold" : "border-border text-muted-foreground hover:border-rcm-400"
+          )}
+        >
+          🎯 {payerFilter.length === 0 ? `All ${groupBy === 'insurer' ? 'Insurers' : 'TPAs'}` : `${payerFilter.length} selected`}
+          <span className="text-[9px]">▼</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-2" align="start">
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search payer…"
+          className="w-full px-2 py-1.5 mb-2 border border-border rounded-md text-xs outline-none focus:border-rcm-400 bg-background"
+        />
+        <div className="flex gap-2 mb-2">
+          <button onClick={() => setPayerFilter([])} className="text-[10px] font-semibold text-rcm-600 hover:text-rcm-700">Clear all</button>
+          <button onClick={() => setPayerFilter(shown)} className="text-[10px] font-semibold text-rcm-600 hover:text-rcm-700">Select all shown</button>
+        </div>
+        <div className="max-h-64 overflow-y-auto space-y-0.5">
+          {shown.map(p => (
+            <label key={p} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-rcm-50 cursor-pointer text-xs">
+              <input type="checkbox" checked={payerFilter.includes(p)} onChange={() => toggle(p)} className="accent-rcm-600" />
+              <span className="truncate">{p}</span>
+            </label>
+          ))}
+          {shown.length === 0 && <div className="text-xs text-muted-foreground px-1.5 py-2">No payers match</div>}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function FilterBar() {
-  const { groupBy, setGroupBy, period, setPeriod, availableYears, dateFrom, dateTo, setDateFrom, setDateTo } = useDashboard();
+  const { groupBy, setGroupBy, period, setPeriod, availableYears, dateFrom, dateTo, setDateFrom, setDateTo, payerFilter } = useDashboard();
   const { chartType, setChartType } = useChartPrefs();
 
   const clearDates = () => {
@@ -186,6 +233,12 @@ export function FilterBar() {
           </button>
         ))}
       </div>
+
+      <span className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">Payer</span>
+      <PayerFilterDropdown />
+      {payerFilter.length > 0 && (
+        <span className="text-[10px] text-rcm-600 font-semibold">All reports filtered to selected payers</span>
+      )}
 
       <div className="w-px h-5 bg-border" />
 
