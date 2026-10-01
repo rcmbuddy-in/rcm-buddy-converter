@@ -80,7 +80,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         return admDay <= toDay;
       });
     }
-    console.log(`[RCM] Recompute: period=${p}, from=${from?.toISOString()}, to=${to?.toISOString()}, filtered=${filtered.length}/${records.length}`);
+    console.log(`[RCM] Recompute: period=${p}, from=${from?.toISOString()}, to=${to?.toISOString()}, payers=${payers?.length ?? 0}, filtered=${filtered.length}/${records.length}`);
     setGlobalData(computeGlobals(filtered));
   }, []);
 
@@ -141,20 +141,32 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setPeriodState(p);
     setDateFrom(undefined);
     setDateTo(undefined);
-    recompute(allRecords, p);
-  }, [allRecords, recompute]);
+    recompute(allRecords, p, undefined, undefined, payerFilter, groupBy);
+  }, [allRecords, recompute, payerFilter, groupBy]);
 
   const handleDateFrom = useCallback((d: Date | undefined) => {
     setDateFrom(d);
     setPeriodState('all');
-    recompute(allRecords, 'all', d, dateTo);
-  }, [allRecords, dateTo, recompute]);
+    recompute(allRecords, 'all', d, dateTo, payerFilter, groupBy);
+  }, [allRecords, dateTo, recompute, payerFilter, groupBy]);
 
   const handleDateTo = useCallback((d: Date | undefined) => {
     setDateTo(d);
     setPeriodState('all');
-    recompute(allRecords, 'all', dateFrom, d);
-  }, [allRecords, dateFrom, recompute]);
+    recompute(allRecords, 'all', dateFrom, d, payerFilter, groupBy);
+  }, [allRecords, dateFrom, recompute, payerFilter, groupBy]);
+
+  const handlePayerFilter = useCallback((payers: string[]) => {
+    setPayerFilterState(payers);
+    recompute(allRecords, period, dateFrom, dateTo, payers, groupBy);
+  }, [allRecords, period, dateFrom, dateTo, groupBy, recompute]);
+
+  const handleGroupByChange = useCallback((g: GroupBy) => {
+    setGroupBy(g);
+    // Payer names differ between TPA and Insurer groupings — reset the filter
+    setPayerFilterState([]);
+    recompute(allRecords, period, dateFrom, dateTo, [], g);
+  }, [allRecords, period, dateFrom, dateTo, recompute]);
 
   const resetData = useCallback(() => {
     setGlobalData(null);
