@@ -234,6 +234,12 @@ export function FilterBar() {
         ))}
       </div>
 
+      <span className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">Payer</span>
+      <PayerFilterDropdown />
+      {payerFilter.length > 0 && (
+        <span className="text-[10px] text-rcm-600 font-semibold">All reports filtered to selected payers</span>
+      )}
+
       <div className="w-px h-5 bg-border" />
 
       <span className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground">Charts</span>
