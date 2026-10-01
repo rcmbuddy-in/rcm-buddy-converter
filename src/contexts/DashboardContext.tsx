@@ -28,6 +28,9 @@ interface DashboardContextType {
   proceedAfterDQ: () => void;
   bypassDQ: () => void;
   allRecords: ClaimRecord[];
+  payerFilter: string[];
+  setPayerFilter: (payers: string[]) => void;
+  availablePayers: string[];
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -49,9 +52,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [dqReport, setDqReport] = useState<DQReport | null>(null);
   const [dqModalOpen, setDqModalOpen] = useState(false);
+  const [payerFilter, setPayerFilterState] = useState<string[]>([]);
 
-  const recompute = useCallback((records: ClaimRecord[], p: string, from?: Date, to?: Date) => {
+  const recompute = useCallback((records: ClaimRecord[], p: string, from?: Date, to?: Date, payers?: string[], gb: GroupBy = 'tpa') => {
     let filtered = records;
+    if (payers && payers.length > 0) {
+      const set = new Set(payers);
+      filtered = filtered.filter(d => set.has(gb === 'insurer' ? d.insurer : d.tpa));
+    }
     if (p !== 'all') {
       filtered = filtered.filter(d => d.admission && d.admission.getFullYear().toString() === p);
     }
