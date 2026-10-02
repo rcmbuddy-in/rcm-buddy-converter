@@ -63,13 +63,13 @@ export function FinancialTab() {
   const dedColors = ['#059669', '#DC2626', '#F97316', '#D97706', '#7C3AED', '#6B7280'];
 
   // Quarterly table
-  const quarters: Record<string, { cnt: number; claimed: number; approved: number; settled: number }> = {};
+  const quarters: Record<string, { cnt: number; claimed: number; approved: number; settled: number; rows: typeof d }> = {};
   d.forEach(x => {
     if (!x.admission) return;
     const y = x.admission.getFullYear(), q = Math.ceil((x.admission.getMonth() + 1) / 3);
     const k = `Q${q} ${y}`;
-    if (!quarters[k]) quarters[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0 };
-    quarters[k].cnt++; quarters[k].claimed += x.claimedAmt; quarters[k].approved += x.approvedAmt; quarters[k].settled += x.settledAmt;
+    if (!quarters[k]) quarters[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, rows: [] };
+    quarters[k].cnt++; quarters[k].claimed += x.claimedAmt; quarters[k].approved += x.approvedAmt; quarters[k].settled += x.settledAmt; quarters[k].rows.push(x);
   });
   const qKeys = Object.keys(quarters).sort().slice(-8);
 
@@ -169,10 +169,10 @@ export function FinancialTab() {
       />
 
       <DataTable title="Financial Summary by Quarter" subtitle="Claimed · Approved · Settled"
-        headers={['Quarter', 'Claims', 'Billed', 'Approved', 'Approved %', 'Settled', 'Collection %']}
+        headers={['Quarter', 'Claims', 'Billed', 'Approved', 'Approved %', 'Settled', 'Net Collection %']}
         rows={qKeys.map(k => {
           const q = quarters[k];
-          return [<strong>{k}</strong>, q.cnt.toString(), fmt(q.claimed), fmt(q.approved), fN(pct(q.approved, q.claimed)) + '%', fmt(q.settled), fN(pct(q.settled, q.approved)) + '%'];
+          return [<strong>{k}</strong>, q.cnt.toString(), fmt(q.claimed), fmt(q.approved), fN(pct(q.approved, q.claimed)) + '%', fmt(q.settled), fN(settledCollRate(q.rows)) + '%'];
         })}
       />
     </div>
