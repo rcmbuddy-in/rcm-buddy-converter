@@ -119,6 +119,21 @@ function col(row: any, ...candidates: string[]): any {
   return null;
 }
 
+const KNOWN_STATUSES = ['Cancelled', 'Pre Auth Query', 'Settled', 'Pre Auth Denied', 'Pre Auth Initiated', 'Pre Auth Approved', 'Pre Auth Query Replied', 'Settlement Initiated', 'Claim Approved', 'Discharge Denied', 'Claim Denied', 'Reconsideration Submitted', 'Discharge Approved', 'Pre Auth Submitted to Payer', 'Processing', 'Enhancement Denied', 'Enhancement Approved'];
+const squash = (v: string) => v.toLowerCase().replace(/[^a-z]/g, '');
+/** Map raw status text (any case/spacing, e.g. "SETTLED ", "Claim Settled", "Pre-Auth Denied") to the canonical status names used by every formula. */
+export function normalizeStatus(raw: any): string {
+  const t = String(raw ?? '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  const q = squash(t);
+  const exact = KNOWN_STATUSES.find(k => squash(k) === q);
+  if (exact) return exact;
+  if (q.includes('cancel')) return 'Cancelled';
+  if (q.includes('settlementinitiated')) return 'Settlement Initiated';
+  if (q.includes('settled') || q === 'paid' || q.includes('closedpaid')) return 'Settled';
+  return t;
+}
+
 export function parseExcelFile(buffer: ArrayBuffer): ClaimRecord[] {
   const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -144,7 +159,7 @@ export function parseExcelFile(buffer: ArrayBuffer): ClaimRecord[] {
     patientPaid: +(col(r, 'Patient Paid Amount', 'PatientPaidAmount', 'Patient Paid') || 0),
     settledAmt: +(col(r, 'Settled Amount', 'SettledAmount', 'Settlement Amount', 'Net Settled Amount') || 0),
     tdsAmt: +(col(r, 'TDS Amount', 'TDSAmount', 'TDS') || 0),
-    status: col(r, 'Claim Status', 'ClaimStatus', 'Status') || '',
+    status: normalizeStatus(col(r, 'Claim Status', 'ClaimStatus', 'Status')),
     docSubmit: tDate(col(r, 'Document Submission Date (on IHX)', 'Document Submission Date', 'Doc Submission Date', 'DocSubmitDate', 'DocumentSubmissionDate')),
     paymentDate: tDate(col(r, 'Payment Update Date', 'Payment Date', 'PaymentDate', 'PaymentUpdateDate', 'Settlement Date')),
     treatment: col(r, 'Treatment', 'Treatment Type', 'Procedure') || '',
