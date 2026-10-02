@@ -108,7 +108,7 @@ export function PayerAuditTab() {
   if (collRate < hospColl - 5) flags.push({ text: `Net collection ${fN(collRate)}% trails the hospital average of ${fN(hospColl)}%.`, sev: 'critical' });
   const oldAR = buckets['91-180'].val + buckets['180+'].val;
   if (pendVal > 0 && oldAR / pendVal > 0.3) flags.push({ text: `${fN(pct(oldAR, pendVal))}% of this payer's outstanding is over 90 days old — escalation needed.`, sev: 'critical' });
-  const zeroAppr = rows.filter(x => x.status !== 'Cancelled' && x.approvedAmt <= 0 && x.settledAmt <= 0).length;
+  const zeroAppr = rows.filter(x => x.status !== 'Cancelled' && x.approvedAmt <= 0 && x.settledAmt <= 0 && isDeniedClaim(x)).length;
   if (zeroAppr > 0) flags.push({ text: `${zeroAppr} claims have zero approved amount (counted as denials).`, sev: 'warning' });
   if (avg(tatVals) > avg(hospTatVals) + 5) flags.push({ text: `Average TAT of ${fN(avg(tatVals))} days is slower than the hospital average of ${fN(avg(hospTatVals))} days.`, sev: 'warning' });
   if (gap.rows.find(r => r.id === 'shortSettle')!.value > 0) flags.push({ text: `${fmt(gap.rows.find(r => r.id === 'shortSettle')!.value)} was settled short of the approved amount — raise disputes.`, sev: 'warning' });
