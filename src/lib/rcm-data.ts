@@ -119,6 +119,32 @@ function col(row: any, ...candidates: string[]): any {
   return null;
 }
 
+const KNOWN_STATUSES = ['Cancelled', 'Pre Auth Query', 'Settled', 'Pre Auth Denied', 'Pre Auth Initiated', 'Pre Auth Approved', 'Pre Auth Query Replied', 'Settlement Initiated', 'Claim Approved', 'Discharge Denied', 'Claim Denied', 'Reconsideration Submitted', 'Discharge Approved', 'Pre Auth Submitted to Payer', 'Processing', 'Enhancement Denied', 'Enhancement Approved'];
+const squash = (v: string) => v.toLowerCase().replace(/[^a-z]/g, '');
+/** Map raw status text (any case/spacing, e.g. "SETTLED ", "Claim Settled", "Pre-Auth Denied") to the canonical status names used by every formula. */
+export function normalizeStatus(raw: any): string {
+  const t = String(raw ?? '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  const q = squash(t);
+  const exact = KNOWN_STATUSES.find(k => squash(k) === q);
+  if (exact) return exact;
+  if (q.includes('cancel')) return 'Cancelled';
+  if (q.includes('settlementinitiated')) return 'Settlement Initiated';
+  if (q.includes('settled') || q === 'paid' || q.includes('closedpaid')) return 'Settled';
+  return t;
+}
+
+/** Parse amounts like "1,23,456.50", "₹ 45,000", "(500)" or blank into a number. */
+export function num(v: any): number {
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  if (v == null) return 0;
+  let t = String(v).trim();
+  const neg = /^\(.*\)$/.test(t);
+  t = t.replace(/[^0-9.\-]/g, '');
+  const n = parseFloat(t);
+  return isFinite(n) ? (neg ? -Math.abs(n) : n) : 0;
+}
+
 export function parseExcelFile(buffer: ArrayBuffer): ClaimRecord[] {
   const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -136,15 +162,15 @@ export function parseExcelFile(buffer: ArrayBuffer): ClaimRecord[] {
     tpa: col(r, 'TPA Name', 'TPAName', 'TPA') || 'Unknown',
     insurer: col(r, 'Insurance Company Name', 'Insurer', 'Insurance Company', 'InsuranceCompany', 'Payer') || 'Unknown',
     claimCreated: tDate(col(r, 'Claim Creation Date', 'ClaimCreationDate', 'Claim Date')),
-    claimedAmt: +(col(r, 'Claimed Amount', 'ClaimedAmount', 'Claim Amount', 'ClaimAmount') || 0),
-    approvedAmt: +(col(r, 'Approved Amount', 'ApprovedAmount', 'Approved Amt') || 0),
-    copay: +(col(r, 'Copay', 'Co-pay', 'CoPay Amount') || 0),
-    shortfall: +(col(r, 'Shortfall Amount', 'ShortfallAmount', 'Shortfall') || 0),
-    discount: +(col(r, 'Hospital Discount', 'HospitalDiscount', 'Discount') || 0),
-    patientPaid: +(col(r, 'Patient Paid Amount', 'PatientPaidAmount', 'Patient Paid') || 0),
-    settledAmt: +(col(r, 'Settled Amount', 'SettledAmount', 'Settlement Amount', 'Net Settled Amount') || 0),
-    tdsAmt: +(col(r, 'TDS Amount', 'TDSAmount', 'TDS') || 0),
-    status: col(r, 'Claim Status', 'ClaimStatus', 'Status') || '',
+    claimedAmt: num(col(r, 'Claimed Amount', 'ClaimedAmount', 'Claim Amount', 'ClaimAmount')),
+    approvedAmt: num(col(r, 'Approved Amount', 'ApprovedAmount', 'Approved Amt')),
+    copay: num(col(r, 'Copay', 'Co-pay', 'CoPay Amount')),
+    shortfall: num(col(r, 'Shortfall Amount', 'ShortfallAmount', 'Shortfall')),
+    discount: num(col(r, 'Hospital Discount', 'HospitalDiscount', 'Discount')),
+    patientPaid: num(col(r, 'Patient Paid Amount', 'PatientPaidAmount', 'Patient Paid')),
+    settledAmt: num(col(r, 'Settled Amount', 'SettledAmount', 'Settlement Amount', 'Net Settled Amount')),
+    tdsAmt: num(col(r, 'TDS Amount', 'TDSAmount', 'TDS')),
+    status: normalizeStatus(col(r, 'Claim Status', 'ClaimStatus', 'Status')),
     docSubmit: tDate(col(r, 'Document Submission Date (on IHX)', 'Document Submission Date', 'Doc Submission Date', 'DocSubmitDate', 'DocumentSubmissionDate')),
     paymentDate: tDate(col(r, 'Payment Update Date', 'Payment Date', 'PaymentDate', 'PaymentUpdateDate', 'Settlement Date')),
     treatment: col(r, 'Treatment', 'Treatment Type', 'Procedure') || '',
