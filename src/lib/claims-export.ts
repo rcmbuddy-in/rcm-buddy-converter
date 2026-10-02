@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { ClaimRecord, GlobalData } from './rcm-data';
+import { ClaimRecord, GlobalData, isAwaitingDecision } from './rcm-data';
 import { GAP_BUCKETS, allocateGap, computeGapBuckets } from './gap-buckets';
 
 const DENIED = ['Pre Auth Denied', 'Discharge Denied', 'Claim Denied', 'Reconsideration Submitted', 'Enhancement Denied'];
@@ -23,7 +23,7 @@ function category(x: ClaimRecord): string {
   const status = x.status;
   if (REMOVED.includes(status)) return 'Removed (Cancelled)';
   // Zero-approval claims are denials, never receivables
-  if (DENIED.includes(status) || (x.approvedAmt <= 0 && x.settledAmt <= 0)) return 'Denied';
+  if (DENIED.includes(status) || (x.approvedAmt <= 0 && x.settledAmt <= 0 && !isAwaitingDecision(x))) return 'Denied';
   if (VALID_CLOSED.includes(status)) return 'Valid / Closed';
   return 'Active / Pending';
 }
@@ -194,7 +194,7 @@ export function exportClaimsWorkbook(global: GlobalData) {
   // ===== Sheet 6: Definitions & Methodology =====
   const def: any[][] = [
     ['Field / Metric', 'Definition / Formula'],
-    ['Status Category — Denied', DENIED.join(', ') + '; plus any non-cancelled claim with zero approved amount'],
+    ['Status Category — Denied', DENIED.join(', ') + '; plus any non-cancelled claim with zero approved amount, except open claims ≤30 days old still awaiting payer decision'],
     ['Status Category — Valid / Closed', VALID_CLOSED.join(', ')],
     ['Status Category — Removed', REMOVED.join(', ')],
     ['Status Category — Active / Pending', 'All other statuses (pre-auth in progress, query, etc.)'],

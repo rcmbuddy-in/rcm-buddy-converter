@@ -7,8 +7,13 @@ export const isDeniedStatus = (s: string) => DENIED_STATUSES.includes(s);
 export const isPendingStatus = (s: string) => !VALID_CLOSED_STATUSES.includes(s) && !DENIED_STATUSES.includes(s) && s !== 'Cancelled';
 
 /** A claim counts as denied when its status is a denial OR nothing was approved (and it isn't cancelled). */
-export const isDeniedClaim = (x: { status: string; approvedAmt: number; settledAmt: number }) =>
-  x.status !== 'Cancelled' && (isDeniedStatus(x.status) || (x.approvedAmt <= 0 && x.settledAmt <= 0));
+/** Open claims with no approval yet that are ≤30 days old are still awaiting the payer's decision — not denials. */
+export const isAwaitingDecision = (x: { status: string; approvedAmt: number; settledAmt: number; admission?: Date | null }) => {
+  if (!isPendingStatus(x.status) || x.approvedAmt > 0 || x.settledAmt > 0 || !x.admission) return false;
+  return (Date.now() - x.admission.getTime()) / 86400000 <= 30;
+};
+export const isDeniedClaim = (x: { status: string; approvedAmt: number; settledAmt: number; admission?: Date | null }) =>
+  x.status !== 'Cancelled' && (isDeniedStatus(x.status) || (x.approvedAmt <= 0 && x.settledAmt <= 0 && !isAwaitingDecision(x)));
 
 /** Outstanding claims: still open AND something was approved. Zero-approval claims are denials, not AR. */
 export const isPendingClaim = (x: { status: string; approvedAmt: number; settledAmt: number }) =>
@@ -258,12 +263,13 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const agedFromAdmission = pending.filter(x => !x.docSubmit && !x.discharge).length;
   const deniedAll = data.filter(x => isDeniedClaim(x)).length;
   const validAll = data.filter(x => isValidClosed(x.status) && !isDeniedClaim(x)).length;
-  const statusSum = deniedAll + validAll + pending.length + data.filter(x => x.status === 'Cancelled').length;
+  const awaitingAll = data.filter(x => isAwaitingDecision(x)).length;
+  const statusSum = deniedAll + validAll + pending.length + awaitingAll + data.filter(x => x.status === 'Cancelled').length;
   const r = (v: number) => Math.round(v);
   const reconciliation: ReconCheck[] = [
     { name: 'Leakage buckets are mutually exclusive', pass: leakTotal <= totalClaimed + 1, detail: `Leakage ₹${r(leakTotal).toLocaleString('en-IN')} ≤ Billed ₹${r(totalClaimed).toLocaleString('en-IN')}; denied claims counted only in Denied bucket` },
     { name: 'AR ageing buckets = Pending AR', pass: bucketCnt === pendingAR.cnt && Math.abs(bucketVal - pendingAR.val) < 1, detail: `${bucketCnt} claims in buckets vs ${pendingAR.cnt} pending; ${agedFromAdmission} aged from admission (no submission/discharge date)` },
-    { name: 'Every claim has exactly one status category', pass: statusSum === n, detail: `${statusSum} categorised of ${n} claims` },
+    { name: 'Every claim has exactly one status category', pass: statusSum === n, detail: `${statusSum} categorised of ${n} claims (${awaitingAll} new claims awaiting payer decision)` },
     { name: 'Patient paid has no copay double-count', pass: true, detail: `${copayInside} rows copay already inside Patient Paid; ${copaySeparate} rows copay added separately` },
     { name: 'Approved ≤ Claimed − Shortfall', pass: overApprovedRows === 0, detail: `${overApprovedRows} claims approved above billed (check source data)` },
     { name: 'Settled + Copay + TDS ≤ Approved', pass: overSettledRows === 0, detail: `${overSettledRows} settled claims paid above approved (check source data)` },
@@ -274,7 +280,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   const tpaLeak: Record<string, any> = {};
   data.forEach(x => {
     const k = x.tpa;
-    if (!tpaLeak[k]) tpaLeak[k] = { cnt: 0, claimed: 0, approved: 0, settled: 0, shortfall: 0, denied: 0, denVal: 0 };
+    if (!tpaLeak[k]) tpaLeak[k] = { cnt: 0, cnc: 0, claimed: 0, approved: 0, settled: 0, shortfall: 0, denied: 0, denVal: 0 };
     const t = tpaLeak[k];
     t.cnt++; if (x.status === 'Cancelled') t.cnc++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt; t.shortfall += x.shortfall;
     if (isDeniedClaim(x)) { t.denied++; t.denVal += x.claimedAmt; }

@@ -7,7 +7,7 @@ export function fmt(n: number | null | undefined): string {
   if (a >= 10000000) {
     const crVal = a / 10000000;
     // For values >= 1000 Cr, show as "X,XXX.XX Cr"
-    if (crVal >= 1000) return sign + '₹' + crVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'Cr';
+    if (crVal >= 1000) return sign + '₹' + crVal.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'Cr';
     // For values >= 100 Cr, show 1 decimal
     if (crVal >= 100) return sign + '₹' + crVal.toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'Cr';
     return sign + '₹' + crVal.toFixed(2) + 'Cr';
