@@ -11,6 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/rcm-buddy-logo.png';
+import { HospitalProfileDialog } from './HospitalProfileDialog';
+import { useHospitalProfile, displayName } from '@/lib/hospital-profile';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -34,6 +36,8 @@ const TABS = [
 export function TopBar() {
   const { globalData, resetData } = useDashboard();
   const [showExport, setShowExport] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const profile = useHospitalProfile();
   if (!globalData) return null;
 
   return (
@@ -48,7 +52,7 @@ export function TopBar() {
         </div>
         <div className="flex items-center gap-3">
           <span className="bg-primary-foreground/10 border border-primary-foreground/20 rounded-full px-3 py-1 text-xs text-primary-foreground/85 font-medium">
-            {globalData.hospitalName}
+            {displayName(profile, globalData.hospitalName)}
           </span>
           <span className="bg-primary-foreground/10 border border-primary-foreground/20 rounded-full px-3 py-1 text-xs text-primary-foreground/85 font-medium">
             {globalData.n.toLocaleString()} claims
@@ -60,6 +64,13 @@ export function TopBar() {
         <div className="flex gap-2 items-center">
           <DataQualityBadge />
           <BrandThemePicker />
+          <button
+            onClick={() => setShowProfile(true)}
+            title="Add hospital and management details shown on reports"
+            className="bg-primary-foreground/15 border border-primary-foreground/25 text-primary-foreground rounded-lg px-3.5 py-1.5 text-xs font-semibold hover:bg-primary-foreground/25 transition-colors"
+          >
+            🏥 Hospital Details
+          </button>
           <button
             onClick={() => exportClaimsWorkbook(globalData)}
             title="Download underlying claims data with formulas & definitions"
@@ -82,6 +93,7 @@ export function TopBar() {
         </div>
       </div>
       <ExportDialog open={showExport} onClose={() => setShowExport(false)} />
+      <HospitalProfileDialog open={showProfile} onClose={() => setShowProfile(false)} />
     </>
   );
 }

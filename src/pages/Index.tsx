@@ -20,6 +20,7 @@ import { DataQualityModal } from '@/components/dashboard/DataQualityModal';
 import { VarianceTab } from '@/components/dashboard/VarianceTab';
 import { AuditTab } from '@/components/dashboard/AuditTab';
 import { PayerAuditTab } from '@/components/dashboard/PayerAuditTab';
+import { ReportHeader } from '@/components/dashboard/ReportHeader';
 
 function DashboardContent() {
   const { globalData, activeTab } = useDashboard();
@@ -39,6 +40,7 @@ function DashboardContent() {
       <NavTabs />
       <FilterBar />
       <div id="dashboard-tab-content" className="max-w-[1440px] mx-auto px-7 py-6">
+        <ReportHeader />
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'variance' && <VarianceTab />}
         {activeTab === 'audit' && <AuditTab />}
