@@ -1,4 +1,5 @@
 import { OverviewTab } from './OverviewTab';
+import { ReportHeader } from './ReportHeader';
 import { FinancialTab } from './FinancialTab';
 import { TATTab } from './TATTab';
 import { DenialTab } from './DenialTab';
@@ -57,6 +58,7 @@ export function ExportRenderSurface({ tabs }: ExportRenderSurfaceProps) {
           className="bg-background px-7 py-6"
           style={{ width: '1440px' }}
         >
+          <ReportHeader />
           {renderTab(tabId)}
         </section>
       ))}
