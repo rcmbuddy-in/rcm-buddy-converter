@@ -21,12 +21,12 @@ export const isPendingClaim = (x: { status: string; approvedAmt: number; settled
 
 /** Receivable balance is the approved amount still to be collected from the payer. */
 export const arOutstanding = (x: { approvedAmt: number; settledAmt: number; tdsAmt: number; copay: number }) =>
-  Math.max(0, x.approvedAmt - x.settledAmt - x.tdsAmt - x.copay);
+  Math.max(0, x.approvedAmt - x.settledAmt - x.tdsAmt);
 
-/** Net collection rate on closed (Settled) claims: (Settled + TDS + Copay) ÷ Approved. */
+/** Net collection rate on closed (Settled) claims: (Settled + TDS) ÷ Approved. */
 export const settledCollRate = (rows: { status: string; approvedAmt: number; settledAmt: number; tdsAmt: number; copay: number }[]) => {
   let a = 0, r = 0;
-  rows.forEach(x => { if (x.status === 'Settled') { a += x.approvedAmt; r += x.settledAmt + x.tdsAmt + x.copay; } });
+  rows.forEach(x => { if (x.status === 'Settled') { a += x.approvedAmt; r += x.settledAmt + x.tdsAmt; } });
   return a > 0 ? (r / a) * 100 : 0;
 };
 
@@ -236,7 +236,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     const t = tpaMap[k];
     t.cnt++; if (x.status === 'Cancelled') t.cnc++; t.claimed += x.claimedAmt; t.approved += x.approvedAmt; t.settled += x.settledAmt;
     if (isDeniedClaim(x)) t.denied++;
-    if (x.status === 'Settled') { t.closedApproved += x.approvedAmt; t.closedRealised += x.settledAmt + x.tdsAmt + x.copay; }
+    if (x.status === 'Settled') { t.closedApproved += x.approvedAmt; t.closedRealised += x.settledAmt + x.tdsAmt; }
     const pk = patientKey(x);
     if (pk) t.patients.add(pk);
     const tat = payerTat(x);
@@ -259,7 +259,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
   // Leakage — mutually exclusive, row-level buckets (no rupee counted twice)
   //  • Denied claims: full claimed value → Denied bucket only
   //  • Other claims: Payer Deduction = Claimed − Approved − Shortfall (≥0); Shortfall = patient-liability gap
-  //  • Short-settlement: only for Settled claims = Approved − Settled − Copay − TDS (≥0). Open claims are AR, not leakage.
+  //  • Short-settlement: only for Settled claims = Approved − Settled − TDS (≥0). Open claims are AR, not leakage.
   let payerDed = 0, shortfallVal = 0, uncollected = 0, deniedVal = 0, overApprovedRows = 0, overSettledRows = 0;
   data.forEach(x => {
     if (x.status === 'Cancelled') return;
@@ -270,7 +270,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     payerDed += Math.max(0, ded);
     shortfallVal += sf;
     if (x.status === 'Settled') {
-      const gap = x.approvedAmt - x.settledAmt - x.copay - x.tdsAmt;
+      const gap = x.approvedAmt - x.settledAmt - x.tdsAmt;
       if (gap < 0 && x.approvedAmt > 0) overSettledRows++;
       uncollected += Math.max(0, gap);
     }
@@ -298,7 +298,7 @@ export function computeGlobals(data: ClaimRecord[]): GlobalData {
     { name: 'Every claim has exactly one status category', pass: statusSum === n, detail: `${statusSum} categorised of ${n} claims (${awaitingAll} new claims awaiting payer decision)` },
     { name: 'Patient paid has no copay double-count', pass: true, detail: `${copayInside} rows copay already inside Patient Paid; ${copaySeparate} rows copay added separately` },
     { name: 'Approved ≤ Claimed − Shortfall', pass: overApprovedRows === 0, detail: `${overApprovedRows} claims approved above billed (check source data)` },
-    { name: 'Settled + Copay + TDS ≤ Approved', pass: overSettledRows === 0, detail: `${overSettledRows} settled claims paid above approved (check source data)` },
+    { name: 'Settled + TDS ≤ Approved', pass: overSettledRows === 0, detail: `${overSettledRows} settled claims paid above approved (check source data)` },
     { name: 'Payer TAT coverage', pass: settledCnt === 0 || tatCovered / settledCnt >= 0.8, detail: `${tatCovered} of ${settledCnt} settled claims have submission/discharge + payment dates` },
   ];
 
