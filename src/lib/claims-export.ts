@@ -70,8 +70,8 @@ export function exportClaimsWorkbook(global: GlobalData) {
       { f: `IFERROR(M${r}/H${r},0)` },
       { f: `IFERROR(M${r}/G${r},0)` },
       { f: `IF(V${r}="Denied",0,MAX(0,G${r}-H${r}-J${r}))` },
-      { f: `IF(O${r}="Settled",MAX(0,H${r}-M${r}-I${r}-N${r}),0)` },
-      { f: `IF(V${r}="Active / Pending",MAX(0,H${r}-M${r}-N${r}-I${r}),0)` },
+      { f: `IF(O${r}="Settled",MAX(0,H${r}-M${r}-N${r}),0)` },
+      { f: `IF(V${r}="Active / Pending",MAX(0,H${r}-M${r}-N${r}),0)` },
     ]);
   });
 
