@@ -50,7 +50,7 @@ export function MoMTab() {
     b.approved += x.approvedAmt;
     b.settled += x.settledAmt;
     if (isDeniedClaim(x)) b.denied++;
-    if (x.status === 'Settled') { (b as any).closedApproved += x.approvedAmt; (b as any).closedRealised += x.settledAmt + x.tdsAmt + x.copay; }
+    if (x.status === 'Settled') { (b as any).closedApproved += x.approvedAmt; (b as any).closedRealised += x.settledAmt + x.tdsAmt; }
     const tat = payerTat(x);
     if (tat !== null && tat < 365) b.tatVals.push(tat);
   });

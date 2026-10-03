@@ -14,8 +14,8 @@ export interface GapBucketDef {
 export const APPEAL_WINDOW_DAYS = 90;
 
 export const GAP_BUCKETS: GapBucketDef[] = [
-  { id: 'openAR', label: 'Open AR with payer', kind: 'recoverable', owner: 'TPA Follow-up Desk', action: 'Chase payer for payment; escalate claims over 45 days', rule: 'Open, approved claims: Approved − Settled − TDS − Copay' },
-  { id: 'shortSettle', label: 'Short-settlement dispute', kind: 'recoverable', owner: 'Reconciliation Team', action: 'Raise dispute with payer using settlement letter', rule: 'Settled claims: Approved − Settled − Copay − TDS (if > 0)' },
+  { id: 'openAR', label: 'Open AR with payer', kind: 'recoverable', owner: 'TPA Follow-up Desk', action: 'Chase payer for payment; escalate claims over 45 days', rule: 'Open, approved claims: Approved − Settled − TDS' },
+  { id: 'shortSettle', label: 'Short-settlement dispute', kind: 'recoverable', owner: 'Reconciliation Team', action: 'Raise dispute with payer using settlement letter', rule: 'Settled claims: Approved − Settled − TDS (if > 0)' },
   { id: 'appeal', label: `Denials within ${APPEAL_WINDOW_DAYS} days`, kind: 'recoverable', owner: 'Denial Management', action: 'File reconsideration / appeal with documents', rule: `Denied or zero-approved claims, ≤ ${APPEAL_WINDOW_DAYS} days since submission/discharge` },
   { id: 'patient', label: 'Patient share (copay + shortfall)', kind: 'recoverable', owner: 'Billing Counter', action: 'Collect from patient before or at discharge', rule: 'Copay + Shortfall on non-denied claims' },
   { id: 'tds', label: 'TDS credit', kind: 'recoverable', owner: 'Finance & Accounts', action: 'Match against Form 26AS / 16A and claim credit', rule: 'TDS on non-denied claims' },
@@ -40,7 +40,7 @@ export function allocateGap(x: ClaimRecord, now = new Date()): Partial<Record<Ga
   if (x.status === 'Cancelled') { take('cancelled', rem); return out; }
   if (isDeniedClaim(x)) { take(ageDays(x, now) <= APPEAL_WINDOW_DAYS ? 'appeal' : 'timeBarred', rem); return out; }
   if (isPendingClaim(x)) take('openAR', arOutstanding(x));
-  if (x.status === 'Settled') take('shortSettle', x.approvedAmt - x.settledAmt - x.copay - x.tdsAmt);
+  if (x.status === 'Settled') take('shortSettle', x.approvedAmt - x.settledAmt - x.tdsAmt);
   take('patient', x.copay + Math.max(0, x.shortfall));
   take('tds', x.tdsAmt);
   take('discount', x.discount);

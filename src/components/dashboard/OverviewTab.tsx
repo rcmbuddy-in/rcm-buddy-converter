@@ -7,6 +7,7 @@ import { HealthScoreCard, LeakageBanner } from './HealthScoreCard';
 import { computeHealthScore, getLeakageSummary } from '@/lib/insights-engine';
 import { isDeniedClaim } from '@/lib/rcm-data';
 import { ReconciliationPanel } from './ReconciliationPanel';
+import { exportClaimsWorkbook } from '@/lib/claims-export';
 import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart,
@@ -90,12 +91,16 @@ export function OverviewTab() {
         <MetricCard label="Total Collected" value={fmt(totalSettled)} subtitle="Net settled by payers" />
         <MetricCard label="Patient Paid" value={fmt(globalData.totalPatientCollected)} subtitle={`Copay ${fmt(globalData.totalCopay)} included, not double-counted`} />
         <MetricCard label="Claim Approval Rate" value={fN(approvalRate) + '%'} subtitle="Approved ÷ Billed" badge={{ type: getBadgeType(approvalRate, 75, 60), text: approvalRate > 75 ? 'Healthy' : approvalRate > 60 ? 'Watch' : 'Critical' }} weight="High Weight" />
-        <MetricCard label="Net Collection Rate" value={fN(netCollRate) + '%'} subtitle="(Settled + TDS + Copay) ÷ Approved · settled claims" badge={{ type: getBadgeType(netCollRate, 85, 70), text: netCollRate > 85 ? 'Strong' : netCollRate > 70 ? 'Average' : 'Weak' }} weight="High Weight" />
+        <MetricCard label="Net Collection Rate" value={fN(netCollRate) + '%'} subtitle="(Settled + TDS) ÷ Approved · settled claims" badge={{ type: getBadgeType(netCollRate, 85, 70), text: netCollRate > 85 ? 'Strong' : netCollRate > 70 ? 'Average' : 'Weak' }} weight="High Weight" />
         <MetricCard label="Payer TAT" value={fN(avgTAT) + ' days'} subtitle="Avg doc submission → payment" badge={{ type: getBadgeType(avgTAT, 30, 60, false), text: avgTAT < 30 ? 'Fast' : avgTAT < 60 ? 'Average' : 'Slow' }} weight="Medium Weight" />
         <MetricCard label="Denial Rate" value={fN(denialRate) + '%'} subtitle={denied.length + ' denied ÷ non-cancelled claims'} badge={{ type: getBadgeType(denialRate, 10, 20, false), text: denialRate < 10 ? 'Controlled' : 'High' }} weight="Medium Weight" />
         <MetricCard label="Pending AR" value={fmt(globalData.pendingAR.val)} subtitle={globalData.pendingAR.cnt + ' open claims · aged from submission'} />
       </MetricGrid>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 rounded-xl border border-border bg-card p-3">
+        <div className="text-xs text-muted-foreground">Want to verify these numbers? Download every claim behind them, with live Excel formulas for each KPI.</div>
+        <button onClick={() => exportClaimsWorkbook(globalData)} className="text-xs font-semibold px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90">⬇ Download data to verify (Excel)</button>
+      </div>
       <ReconciliationPanel checks={globalData.reconciliation} />
 
       <ChartGrid>
