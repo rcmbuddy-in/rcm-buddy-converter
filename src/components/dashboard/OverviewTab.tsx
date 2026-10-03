@@ -7,7 +7,6 @@ import { HealthScoreCard, LeakageBanner } from './HealthScoreCard';
 import { computeHealthScore, getLeakageSummary } from '@/lib/insights-engine';
 import { isDeniedClaim } from '@/lib/rcm-data';
 import { ReconciliationPanel } from './ReconciliationPanel';
-import { ReportHeader } from './ReportHeader';
 import { exportClaimsWorkbook } from '@/lib/claims-export';
 import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
@@ -78,7 +77,6 @@ export function OverviewTab() {
 
   return (
     <div className="animate-fadeIn">
-      {!document.getElementById('dashboard-export-surface')?.contains(null as any) && null}
       {/* Executive command-center row: Health + Leakage */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 mb-6">
         <HealthScoreCard health={health} />
