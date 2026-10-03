@@ -7,6 +7,7 @@ import { HealthScoreCard, LeakageBanner } from './HealthScoreCard';
 import { computeHealthScore, getLeakageSummary } from '@/lib/insights-engine';
 import { isDeniedClaim } from '@/lib/rcm-data';
 import { ReconciliationPanel } from './ReconciliationPanel';
+import { exportClaimsWorkbook } from '@/lib/claims-export';
 import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart,
@@ -96,6 +97,10 @@ export function OverviewTab() {
         <MetricCard label="Pending AR" value={fmt(globalData.pendingAR.val)} subtitle={globalData.pendingAR.cnt + ' open claims · aged from submission'} />
       </MetricGrid>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3 rounded-xl border border-border bg-card p-3">
+        <div className="text-xs text-muted-foreground">Want to verify these numbers? Download every claim behind them, with live Excel formulas for each KPI.</div>
+        <button onClick={() => exportClaimsWorkbook(globalData)} className="text-xs font-semibold px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90">⬇ Download data to verify (Excel)</button>
+      </div>
       <ReconciliationPanel checks={globalData.reconciliation} />
 
       <ChartGrid>
