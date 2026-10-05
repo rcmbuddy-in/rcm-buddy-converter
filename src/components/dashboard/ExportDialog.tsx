@@ -13,7 +13,17 @@ const TABS = [
   { id: 'payer', label: 'Payer Performance' },
   { id: 'leakage', label: 'Revenue Leakage' },
   { id: 'ai-report', label: 'AI Report' },
+  { id: 'variance', label: 'Variance vs Prior' },
+  { id: 'audit', label: 'Formula Audit' },
+  { id: 'mom', label: 'MoM Trends' },
+  { id: 'corporate', label: 'Corporate' },
+  { id: 'cashflow', label: '90-day Cash Flow' },
+  { id: 'profitability', label: 'Payer Profitability' },
+  { id: 'dso', label: 'DSO & Velocity' },
+  { id: 'payer-audit', label: 'Payer Audit' },
+  { id: 'money-chase', label: 'Money Chase' },
 ];
+const CEO_ORDER = ['overview', 'variance', 'financial', 'money-chase', 'cashflow', 'ar', 'dso', 'denial', 'tat', 'payer', 'profitability', 'payer-audit', 'corporate', 'mom', 'leakage', 'ai-report', 'audit'];
 
 interface ExportDialogProps {
   open: boolean;
@@ -22,8 +32,10 @@ interface ExportDialogProps {
 
 export function ExportDialog({ open, onClose }: ExportDialogProps) {
   const { globalData, activeTab } = useDashboard();
-  const [selectedTabs, setSelectedTabs] = useState<string[]>([activeTab]);
-  const [mode, setMode] = useState<'pdf' | 'print'>('pdf');
+  const [selectedTabsState, setSelectedTabs] = useState<string[]>([activeTab]);
+  const selectedTabs = selectedTabsState;
+  const [modeState, setMode] = useState<'pdf' | 'print'>('pdf');
+  const mode = modeState;
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState('');
   const [renderTabs, setRenderTabs] = useState<string[]>([]);
@@ -39,7 +51,9 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
   const selectAll = () => setSelectedTabs(TABS.map(t => t.id));
   const selectNone = () => setSelectedTabs([]);
 
-  const handleExport = async () => {
+  const handleExport = async (override?: string[], forceMode?: 'pdf' | 'print') => {
+    const selectedTabs = override ?? selectedTabsState;
+    const mode = forceMode ?? modeState;
     if (selectedTabs.length === 0) return;
     setExporting(true);
     setRenderTabs(selectedTabs);
@@ -82,6 +96,15 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
       <div className="bg-card rounded-2xl shadow-elevated w-[480px] max-w-[92vw] p-6" onClick={e => e.stopPropagation()}>
         <h3 className="font-display text-lg font-bold text-foreground mb-1">Export / Print Report</h3>
         <p className="text-xs text-muted-foreground mb-5">Select pages and output format</p>
+
+        <button
+          onClick={() => handleExport(CEO_ORDER, 'print')}
+          disabled={exporting}
+          className="w-full mb-4 px-4 py-3 rounded-xl bg-rcm-600 text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-50"
+        >
+          🖨️ Print full CEO Report (all pages + Money Chase)
+        </button>
+        <p className="text-[11px] text-muted-foreground mb-4 text-center">— or pick specific pages below —</p>
 
         {/* Mode toggle */}
         <div className="flex border border-border rounded-lg overflow-hidden mb-5">
