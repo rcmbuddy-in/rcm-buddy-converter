@@ -9,6 +9,13 @@ import { LeakageTab } from './LeakageTab';
 import { AIReportTab } from './AIReportTab';
 import { MoMTab } from './MoMTab';
 import { CorporateTab } from './CorporateTab';
+import { VarianceTab } from './VarianceTab';
+import { AuditTab } from './AuditTab';
+import { PayerAuditTab } from './PayerAuditTab';
+import { CashFlowTab } from './CashFlowTab';
+import { PayerProfitabilityTab } from './PayerProfitabilityTab';
+import { DSOTab } from './DSOTab';
+import { MoneyChaseReport } from './MoneyChaseReport';
 
 interface ExportRenderSurfaceProps {
   tabs: string[];
@@ -36,6 +43,13 @@ const renderTab = (tabId: string) => {
       return <MoMTab />;
     case 'corporate':
       return <CorporateTab />;
+    case 'variance': return <VarianceTab />;
+    case 'audit': return <AuditTab />;
+    case 'payer-audit': return <PayerAuditTab />;
+    case 'cashflow': return <CashFlowTab />;
+    case 'profitability': return <PayerProfitabilityTab />;
+    case 'dso': return <DSOTab />;
+    case 'money-chase': return <MoneyChaseReport />;
     default:
       return null;
   }
