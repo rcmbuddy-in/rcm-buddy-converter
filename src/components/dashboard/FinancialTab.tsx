@@ -108,7 +108,7 @@ export function FinancialTab() {
         <MetricCard label="Billed − Collected Gap" value={fmt(netLeak)} subtitle={fN(pct(netLeak, totalClaimed)) + '% of billed · incl. open AR, TDS & copay (not all loss)'} badge={{ type: 'warning', text: 'Track' }} />
         <MetricCard label="Approval Rate" value={fN(apR) + '%'} subtitle="Approved ÷ Billed" badge={{ type: getBadgeType(apR, 75, 60), text: fN(apR) + '%' }} />
         <MetricCard label="Payer Deduction %" value={fN(dedP) + '%'} subtitle={fmt(grossLeak) + ' deducted by payers'} />
-        <MetricCard label="Net Collection Rate" value={fN(ncR) + '%'} subtitle="Settled ÷ Approved" badge={{ type: getBadgeType(ncR, 85, 70), text: ncR > 85 ? 'Strong' : 'Needs Attention' }} />
+        <MetricCard label="Net Collection Rate" value={fN(ncR) + '%'} subtitle="Settled ÷ Billed (settled claims)" badge={{ type: getBadgeType(ncR, 85, 70), text: ncR > 85 ? 'Strong' : 'Needs Attention' }} />
         <MetricCard label="Shortfall Rate" value={fN(sfP) + '%'} subtitle={fmt(totalShortfall) + ' total shortfall'} />
       </MetricGrid>
 

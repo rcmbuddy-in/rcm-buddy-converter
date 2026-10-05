@@ -15,8 +15,8 @@ interface MonthBucket {
   key: string;
   label: string;
   cnt: number;
-  closedApproved: number;
-  closedRealised: number;
+  closedClaimed: number;
+  closedSettled: number;
   claimed: number;
   approved: number;
   settled: number;
@@ -41,7 +41,7 @@ export function MoMTab() {
       map[key] = {
         key,
         label: new Date(y, m).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
-        cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], closedApproved: 0, closedRealised: 0,
+        cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], closedClaimed: 0, closedSettled: 0,
       };
     }
     const b = map[key];
@@ -50,7 +50,7 @@ export function MoMTab() {
     b.approved += x.approvedAmt;
     b.settled += x.settledAmt;
     if (isDeniedClaim(x)) b.denied++;
-    if (x.status === 'Settled') { (b as any).closedApproved += x.approvedAmt; (b as any).closedRealised += x.settledAmt + x.tdsAmt; }
+    if (x.status === 'Settled') { (b as any).closedClaimed += x.claimedAmt; (b as any).closedSettled += x.settledAmt; }
     const tat = payerTat(x);
     if (tat !== null && tat < 365) b.tatVals.push(tat);
   });
@@ -69,7 +69,7 @@ export function MoMTab() {
   const momData = months.map((m, i) => {
     const prev = i > 0 ? months[i - 1] : null;
     const approvalRate = pct(m.approved, m.claimed);
-    const collRate = pct((m as any).closedRealised, (m as any).closedApproved);
+    const collRate = pct((m as any).closedSettled, (m as any).closedClaimed);
     const denialRate = pct(m.denied, m.cnt - ((m as any).cancelled || 0));
     const avgTAT = avg(m.tatVals);
     return {

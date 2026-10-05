@@ -215,7 +215,7 @@ export function getFinancialInsights(g: GlobalData): Insight[] {
   if (collRate < 85) insights.push({
     severity: 'warning',
     title: 'Net collection lagging',
-    detail: `Only ${fN(collRate)}% of approved amount actually collected.`,
+    detail: `Only ${fN(collRate)}% of billed amount actually collected on settled claims.`,
     impact: `${fmt(totalApproved - totalSettled)} approved-but-uncollected`,
     action: 'Run aging-based collection drive.',
   });
