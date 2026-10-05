@@ -74,6 +74,23 @@ export function ARTab() {
         headers={['Bucket', 'Claims', 'Value', '% of AR']}
         rows={Object.entries(ab).map(([name, v]) => [name + ' days', v.cnt.toString(), fmt(v.val), fN(pct(v.val, pendVal)) + '%'])}
       />
+
+      <DataTable
+        title={`Payer-wise AR Aging (${groupBy === 'insurer' ? 'Insurer' : 'TPA'})`}
+        subtitle="Open claims · approved balance due · each cell shows claims, amount and % of total AR"
+        headers={[groupBy === 'insurer' ? 'Insurer' : 'TPA', 'Claims', 'Outstanding', '% of AR', '0-30 d', '31-60 d', '61-90 d', '91-180 d', '180+ d']}
+        rows={payerAgeRows.map(([name, v]) => [
+          <strong>{shortP(name)}</strong>,
+          v.totalCnt.toLocaleString(),
+          fmt(v.totalVal),
+          fN(pct(v.totalVal, pendVal)) + '%',
+          ...BUCKET_KEYS.map(b => (
+            <span className="text-xs">
+              {v.cnt[b] > 0 ? <>{v.cnt[b]} · <strong>{fmt(v.val[b])}</strong> <span className="text-muted-foreground">({fN(pct(v.val[b], pendVal))}%)</span></> : '—'}
+            </span>
+          )),
+        ])}
+      />
     </div>
   );
 }
