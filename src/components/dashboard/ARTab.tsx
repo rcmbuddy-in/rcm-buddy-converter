@@ -1,10 +1,10 @@
-import { isPendingClaim } from '@/lib/rcm-data';
+import { isPendingClaim, arOutstanding } from '@/lib/rcm-data';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { MetricCard, MetricGrid } from './MetricCard';
 import { ChartCard, ChartGrid } from './ChartCard';
 import { DataTable } from './DataTable';
 import { SectionHeading } from './SectionHeading';
-import { fmt, fN, pct, sm, MIX_PAL, R_PAL } from '@/lib/rcm-utils';
+import { fmt, fN, pct, sm, ddiff, arAnchor, shortP, MIX_PAL, R_PAL } from '@/lib/rcm-utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
 export function ARTab() {
