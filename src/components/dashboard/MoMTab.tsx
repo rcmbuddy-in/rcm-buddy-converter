@@ -15,8 +15,8 @@ interface MonthBucket {
   key: string;
   label: string;
   cnt: number;
-  closedApproved: number;
-  closedRealised: number;
+  closedClaimed: number;
+  closedSettled: number;
   claimed: number;
   approved: number;
   settled: number;
@@ -41,7 +41,7 @@ export function MoMTab() {
       map[key] = {
         key,
         label: new Date(y, m).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
-        cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], closedApproved: 0, closedRealised: 0,
+        cnt: 0, claimed: 0, approved: 0, settled: 0, denied: 0, tatVals: [], closedClaimed: 0, closedSettled: 0,
       };
     }
     const b = map[key];
