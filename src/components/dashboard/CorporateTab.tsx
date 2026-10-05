@@ -127,7 +127,7 @@ export function CorporateTab() {
         <MetricCard label="Corporate Billed" value={fmt(totalClaimed)} subtitle="Total claimed amount" />
         <MetricCard label="Corporate Collected" value={fmt(totalSettled)} subtitle="Total settled amount" />
         <MetricCard label="Approval Rate" value={fN(approvalRate) + '%'} subtitle="Approved ÷ Billed" badge={{ type: getBadgeType(approvalRate, 75, 60), text: approvalRate > 75 ? 'Healthy' : 'Watch' }} />
-        <MetricCard label="Net Collection Rate" value={fN(collRate) + '%'} subtitle="Settled ÷ Approved" badge={{ type: getBadgeType(collRate, 85, 70), text: collRate > 85 ? 'Strong' : 'Needs Attention' }} />
+        <MetricCard label="Net Collection Rate" value={fN(collRate) + '%'} subtitle="Settled ÷ Billed (settled claims)" badge={{ type: getBadgeType(collRate, 85, 70), text: collRate > 85 ? 'Strong' : 'Needs Attention' }} />
         <MetricCard label="Denial Rate" value={fN(denialRate) + '%'} subtitle={denied.length + ' denied claims'} badge={{ type: getBadgeType(denialRate, 10, 20, false), text: denialRate < 10 ? 'Controlled' : 'High' }} />
         <MetricCard label="Avg Claim Value" value={fmt(avgClaim)} subtitle="Per corporate claim" />
         <MetricCard label="Avg TAT" value={fN(avgTAT) + ' days'} subtitle="Admission to payment" badge={{ type: getBadgeType(avgTAT, 30, 60, false), text: avgTAT < 30 ? 'Fast' : 'Slow' }} />

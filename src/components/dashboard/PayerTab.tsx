@@ -43,7 +43,7 @@ export function PayerTab() {
             {bySettled.map((_, i) => <Cell key={i} fill={R_PAL[i % R_PAL.length]} />)}
           </Pie><Tooltip formatter={(v: number) => fmt(v)} /><Legend /></PieChart></ResponsiveContainer>
         </ChartCard>
-        <ChartCard title="Net Collection Rate" subtitle="Settled ÷ Approved %" height="300px">
+        <ChartCard title="Net Collection Rate" subtitle="Settled ÷ Billed %" height="300px">
           <ResponsiveContainer><BarChart data={byNetColl.map(t => ({ name: shortP(t.k), value: +fN(t.collRate) }))} layout="vertical"><XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 10 }} /><Tooltip formatter={(v: number) => v + '%'} /><Bar dataKey="value" radius={[0, 4, 4, 0]}>
             {byNetColl.map((t, i) => <Cell key={i} fill={t.collRate > 85 ? '#059669' : t.collRate > 70 ? '#D97706' : '#DC2626'} />)}
           </Bar></BarChart></ResponsiveContainer>
