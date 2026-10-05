@@ -7,14 +7,34 @@ import { SectionHeading } from './SectionHeading';
 import { fmt, fN, pct, sm, ddiff, arAnchor, shortP, MIX_PAL, R_PAL } from '@/lib/rcm-utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
+const BUCKET_KEYS = ['0-30', '31-60', '61-90', '91-180', '180+'] as const;
+type BucketKey = typeof BUCKET_KEYS[number];
+const bucketOf = (age: number): BucketKey => age <= 30 ? '0-30' : age <= 60 ? '31-60' : age <= 90 ? '61-90' : age <= 180 ? '91-180' : '180+';
+
 export function ARTab() {
-  const { globalData } = useDashboard();
+  const { globalData, groupBy } = useDashboard();
   if (!globalData) return null;
   const { data: d, n, ageBuckets, totalClaimed } = globalData;
 
   const pending = d.filter(x => isPendingClaim(x));
   const pendVal = globalData.pendingAR.val;
   const arToRev = pct(pendVal, totalClaimed);
+
+  // Payer-wise aging: counts + amounts per bucket
+  const now = new Date();
+  const payerKey = (x: (typeof d)[number]) => groupBy === 'insurer' ? (x.insurer || 'Unknown') : (x.tpa || 'Unknown');
+  const payerAge: Record<string, { cnt: Record<BucketKey, number>; val: Record<BucketKey, number>; totalCnt: number; totalVal: number }> = {};
+  pending.forEach(x => {
+    const k = payerKey(x);
+    if (!payerAge[k]) payerAge[k] = { cnt: { '0-30': 0, '31-60': 0, '61-90': 0, '91-180': 0, '180+': 0 }, val: { '0-30': 0, '31-60': 0, '61-90': 0, '91-180': 0, '180+': 0 }, totalCnt: 0, totalVal: 0 };
+    const a = arAnchor(x);
+    const age = a ? (ddiff(a, now) ?? 0) : 0;
+    const b = bucketOf(age);
+    const v = arOutstanding(x);
+    payerAge[k].cnt[b]++; payerAge[k].val[b] += v;
+    payerAge[k].totalCnt++; payerAge[k].totalVal += v;
+  });
+  const payerAgeRows = Object.entries(payerAge).sort((a, b) => b[1].totalVal - a[1].totalVal);
 
   const ab = ageBuckets;
   const aged90 = (ab['91-180']?.cnt || 0) + (ab['180+']?.cnt || 0);
