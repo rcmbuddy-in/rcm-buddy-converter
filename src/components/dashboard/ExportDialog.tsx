@@ -166,7 +166,7 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
             <button onClick={onClose} disabled={exporting} className="px-4 py-2 text-xs rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50">
               Cancel
             </button>
-            <button onClick={handleExport} disabled={exporting || selectedTabs.length === 0} className="px-4 py-2 text-xs rounded-lg bg-rcm-600 text-primary-foreground font-semibold hover:bg-rcm-700 transition-colors disabled:opacity-50">
+            <button onClick={() => void handleExport()} disabled={exporting || selectedTabs.length === 0} className="px-4 py-2 text-xs rounded-lg bg-rcm-600 text-primary-foreground font-semibold hover:bg-rcm-700 transition-colors disabled:opacity-50">
               {mode === 'pdf' ? 'Download PDF' : 'Print'}
             </button>
           </div>

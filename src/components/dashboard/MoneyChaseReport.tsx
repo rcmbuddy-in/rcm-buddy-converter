@@ -12,8 +12,8 @@ export function MoneyChaseReport() {
     const summary = computeGapBuckets(data, now);
     const lines: { name: string; id: string; payer: string; status: string; bucket: string; kind: string; owner: string; amt: number }[] = [];
     data.forEach(x => Object.entries(allocateGap(x, now)).forEach(([id, v]) => {
-      const b = GAP_BUCKETS.find(g => g.id === id)!;
-      if (b.kind === 'recoverable') lines.push({ name: x.patientName, id: x.patientId, payer: x.tpa || x.insurer, status: x.status, bucket: b.label, kind: b.kind, owner: b.owner, amt: v || 0 });
+      const b = GAP_BUCKETS.find(g => g.id === id);
+      if (b?.kind === 'recoverable') lines.push({ name: x.patientName, id: x.patientId, payer: x.tpa || x.insurer, status: x.status, bucket: b.label, kind: b.kind, owner: b.owner, amt: v || 0 });
     }));
     lines.sort((a, b) => b.amt - a.amt);
     return { summary, lines: lines.slice(0, 50) };

@@ -10,6 +10,15 @@ const TAB_TITLES: Record<string, string> = {
   payer: 'Payer Performance',
   leakage: 'Revenue Leakage',
   'ai-report': 'AI Report',
+  variance: 'Variance vs Prior Period',
+  audit: 'Formula Audit',
+  mom: 'Month-on-Month Trends',
+  corporate: 'Corporate Performance',
+  cashflow: '90-day Cash Flow Forecast',
+  profitability: 'Payer Profitability',
+  dso: 'DSO & Collection Velocity',
+  'payer-audit': 'Payer Audit',
+  'money-chase': 'Money Chase',
 };
 
 export interface ExportCapture {
