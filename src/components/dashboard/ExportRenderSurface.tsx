@@ -18,7 +18,7 @@ import { DSOTab } from './DSOTab';
 import { MoneyChaseReport } from './MoneyChaseReport';
 
 interface ExportRenderSurfaceProps {
-  tabs: string[];
+  tabs: unknown;
 }
 
 const renderTab = (tabId: string) => {
@@ -56,7 +56,11 @@ const renderTab = (tabId: string) => {
 };
 
 export function ExportRenderSurface({ tabs }: ExportRenderSurfaceProps) {
-  if (tabs.length === 0) return null;
+  const tabIds = Array.isArray(tabs)
+    ? tabs.filter((tabId): tabId is string => typeof tabId === 'string')
+    : [];
+
+  if (tabIds.length === 0) return null;
 
   return (
     <div
@@ -65,7 +69,7 @@ export function ExportRenderSurface({ tabs }: ExportRenderSurfaceProps) {
       className="fixed left-0 top-0 -z-10 pointer-events-none"
       style={{ width: '1440px', transform: 'translateX(-200vw)', background: '#ffffff' }}
     >
-      {tabs.map(tabId => (
+      {tabIds.map(tabId => (
         <section
           key={tabId}
           data-export-section={tabId}
