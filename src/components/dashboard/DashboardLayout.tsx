@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useChartPrefs } from '@/contexts/ChartPrefsContext';
-import { ExportDialog } from './ExportDialog';
 import { BrandThemePicker } from './BrandThemePicker';
 import { DataQualityBadge } from './DataQualityBadge';
-import { exportClaimsWorkbook } from '@/lib/claims-export';
+
+// Export tooling (PDF libs + every report page) is heavy — load only when used.
+const ExportDialog = lazy(() => import('./ExportDialog').then(m => ({ default: m.ExportDialog })));
+const exportClaimsWorkbook = async (data: Parameters<typeof import('@/lib/claims-export').exportClaimsWorkbook>[0]) =>
+  (await import('@/lib/claims-export')).exportClaimsWorkbook(data);
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -92,7 +95,11 @@ export function TopBar() {
           </button>
         </div>
       </div>
-      <ExportDialog open={showExport} onClose={() => setShowExport(false)} />
+      {showExport && (
+        <Suspense fallback={null}>
+          <ExportDialog open={showExport} onClose={() => setShowExport(false)} />
+        </Suspense>
+      )}
       <HospitalProfileDialog open={showProfile} onClose={() => setShowProfile(false)} />
     </>
   );

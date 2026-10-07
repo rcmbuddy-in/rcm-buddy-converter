@@ -20,7 +20,20 @@ export default defineConfig(({ mode }) => ({
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
   optimizeDeps: {
-    include: ["react", "react-dom", "react-dom/client", "react/jsx-runtime", "react/jsx-dev-runtime"],
-    force: true,
+    // Pre-bundle heavy libraries up front so the dev server never re-optimizes
+    // mid-session (which causes full reloads / white screens).
+    include: [
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+      "recharts",
+      "xlsx",
+      "jspdf",
+      "html2canvas",
+      "react-markdown",
+      "date-fns",
+    ],
   },
 }));

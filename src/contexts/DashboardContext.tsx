@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { ClaimRecord, GlobalData, parseExcelFile, parseRawSheet, computeGlobals } from '@/lib/rcm-data';
 import { runDataQuality, DQReport } from '@/lib/dq-engine';
 
@@ -185,34 +185,44 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     return groupBy === 'insurer' ? x.insurer : x.tpa;
   }, [groupBy]);
 
+  const availablePayers = useMemo(() => {
+    const s = new Set<string>();
+    allRecords.forEach(d => s.add(groupBy === 'insurer' ? d.insurer : d.tpa));
+    return [...s].sort();
+  }, [allRecords, groupBy]);
+
+  // Memoize the context value so report pages only re-render when data actually changes.
+  const value = useMemo<DashboardContextType>(() => ({
+    globalData, setGlobalData,
+    groupBy, setGroupBy: handleGroupByChange,
+    period, setPeriod: handlePeriodChange,
+    activeTab, setActiveTab,
+    availableYears,
+    handleFileUpload,
+    resetData,
+    getGroupKey,
+    dateFrom, dateTo,
+    setDateFrom: handleDateFrom,
+    setDateTo: handleDateTo,
+    dqReport,
+    dqModalOpen,
+    openDQModal,
+    closeDQModal,
+    proceedAfterDQ,
+    bypassDQ,
+    allRecords,
+    payerFilter,
+    setPayerFilter: handlePayerFilter,
+    availablePayers,
+  }), [
+    globalData, groupBy, handleGroupByChange, period, handlePeriodChange, activeTab,
+    availableYears, handleFileUpload, resetData, getGroupKey, dateFrom, dateTo,
+    handleDateFrom, handleDateTo, dqReport, dqModalOpen, openDQModal, closeDQModal,
+    proceedAfterDQ, bypassDQ, allRecords, payerFilter, handlePayerFilter, availablePayers,
+  ]);
+
   return (
-    <DashboardContext.Provider value={{
-      globalData, setGlobalData,
-      groupBy, setGroupBy: handleGroupByChange,
-      period, setPeriod: handlePeriodChange,
-      activeTab, setActiveTab,
-      availableYears,
-      handleFileUpload,
-      resetData,
-      getGroupKey,
-      dateFrom, dateTo,
-      setDateFrom: handleDateFrom,
-      setDateTo: handleDateTo,
-      dqReport,
-      dqModalOpen,
-      openDQModal,
-      closeDQModal,
-      proceedAfterDQ,
-      bypassDQ,
-      allRecords,
-      payerFilter,
-      setPayerFilter: handlePayerFilter,
-      availablePayers: (() => {
-        const s = new Set<string>();
-        allRecords.forEach(d => s.add(groupBy === 'insurer' ? d.insurer : d.tpa));
-        return [...s].sort();
-      })(),
-    }}>
+    <DashboardContext.Provider value={value}>
       {children}
     </DashboardContext.Provider>
   );
