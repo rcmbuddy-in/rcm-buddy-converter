@@ -7,7 +7,8 @@ import { HealthScoreCard, LeakageBanner } from './HealthScoreCard';
 import { computeHealthScore, getLeakageSummary } from '@/lib/insights-engine';
 import { isDeniedClaim } from '@/lib/rcm-data';
 import { ReconciliationPanel } from './ReconciliationPanel';
-import { exportClaimsWorkbook } from '@/lib/claims-export';
+const exportClaimsWorkbook = async (data: Parameters<typeof import('@/lib/claims-export').exportClaimsWorkbook>[0]) =>
+  (await import('@/lib/claims-export')).exportClaimsWorkbook(data);
 import { fmt, fN, pct, avg, ddiff, sm, shortP, MIX_PAL, getBadgeType , payerTat } from '@/lib/rcm-utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart,
