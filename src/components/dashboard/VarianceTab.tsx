@@ -4,7 +4,6 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import { computeGlobals } from '@/lib/rcm-data';
 import { KPIS, fmtKpi, priorPeriod, drivers, loadTargets, saveTargets, TargetMap } from '@/lib/kpi-variance';
 import { SectionHeading } from './SectionHeading';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -37,21 +36,33 @@ export function VarianceTab() {
   const sel = rows.find(r => r.k.id === selected)!;
 
   const explain = async () => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      setAi({ loading: false, error: 'AI explanation is unavailable because its connection settings are missing. Your reports are still available.' });
+      return;
+    }
+
     setAi({ loading: true });
-    const { data, error } = await supabase.functions.invoke('kpi-explain', {
-      body: {
-        focusKpi: sel.k.label,
-        currentPeriod: pp ? `${fd(pp.curStart)} to ${fd(pp.curEnd)}` : globalData.dateRange,
-        priorPeriod: pp ? `${fd(pp.prevStart)} to ${fd(pp.prevEnd)}` : 'not available',
-        kpis: rows.map(r => ({ kpi: r.k.label, current: fmtKpi(r.k.kind, r.cur), prior: fmtKpi(r.k.kind, r.prev), target: r.target ? fmtKpi(r.k.kind, r.target) : null, benchmark: r.benchmark ? fmtKpi(r.k.kind, r.benchmark) : null, higherIsBetter: r.k.higherIsBetter })),
-        topDriversOfFocusKpi: sel.drv.map(d => ({ payer: d.name, contribution: fmtKpi(sel.k.kind === 'pct' ? 'pct' : sel.k.kind, d.contribution) })),
-        reconciliation: globalData.reconciliation,
-        claimCounts: { current: globalData.n, prior: pp?.prev.length ?? 0 },
-      },
-    });
-    const msg = (data as any)?.error || (error ? ((await (error as any).context?.json?.().catch(() => null))?.error || error.message) : null);
-    if (msg) setAi({ loading: false, error: msg });
-    else setAi({ loading: false, text: (data as any).text });
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data, error } = await supabase.functions.invoke('kpi-explain', {
+        body: {
+          focusKpi: sel.k.label,
+          currentPeriod: pp ? `${fd(pp.curStart)} to ${fd(pp.curEnd)}` : globalData.dateRange,
+          priorPeriod: pp ? `${fd(pp.prevStart)} to ${fd(pp.prevEnd)}` : 'not available',
+          kpis: rows.map(r => ({ kpi: r.k.label, current: fmtKpi(r.k.kind, r.cur), prior: fmtKpi(r.k.kind, r.prev), target: r.target ? fmtKpi(r.k.kind, r.target) : null, benchmark: r.benchmark ? fmtKpi(r.k.kind, r.benchmark) : null, higherIsBetter: r.k.higherIsBetter })),
+          topDriversOfFocusKpi: sel.drv.map(d => ({ payer: d.name, contribution: fmtKpi(sel.k.kind === 'pct' ? 'pct' : sel.k.kind, d.contribution) })),
+          reconciliation: globalData.reconciliation,
+          claimCounts: { current: globalData.n, prior: pp?.prev.length ?? 0 },
+        },
+      });
+      const msg = (data as any)?.error || (error ? ((await (error as any).context?.json?.().catch(() => null))?.error || error.message) : null);
+      if (msg) setAi({ loading: false, error: msg });
+      else setAi({ loading: false, text: (data as any).text });
+    } catch (error) {
+      setAi({ loading: false, error: error instanceof Error ? error.message : 'Unable to generate the explanation right now.' });
+    }
   };
 
   return (
