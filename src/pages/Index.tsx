@@ -1,26 +1,43 @@
+import { lazy, Suspense, type ComponentType } from 'react';
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
 import { ChartPrefsProvider } from '@/contexts/ChartPrefsContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { UploadScreen } from '@/components/UploadScreen';
 import { TopBar, NavTabs, FilterBar } from '@/components/dashboard/DashboardLayout';
-import { OverviewTab } from '@/components/dashboard/OverviewTab';
-import { FinancialTab } from '@/components/dashboard/FinancialTab';
-import { TATTab } from '@/components/dashboard/TATTab';
-import { DenialTab } from '@/components/dashboard/DenialTab';
-import { ARTab } from '@/components/dashboard/ARTab';
-import { PayerTab } from '@/components/dashboard/PayerTab';
-import { LeakageTab } from '@/components/dashboard/LeakageTab';
-import { AIReportTab } from '@/components/dashboard/AIReportTab';
-import { MoMTab } from '@/components/dashboard/MoMTab';
-import { CorporateTab } from '@/components/dashboard/CorporateTab';
-import { CashFlowTab } from '@/components/dashboard/CashFlowTab';
-import { PayerProfitabilityTab } from '@/components/dashboard/PayerProfitabilityTab';
-import { DSOTab } from '@/components/dashboard/DSOTab';
 import { DataQualityModal } from '@/components/dashboard/DataQualityModal';
-import { VarianceTab } from '@/components/dashboard/VarianceTab';
-import { AuditTab } from '@/components/dashboard/AuditTab';
-import { PayerAuditTab } from '@/components/dashboard/PayerAuditTab';
 import { ReportHeader } from '@/components/dashboard/ReportHeader';
+
+// Each report page is loaded only when it is opened, keeping the first load fast.
+const lazyTab = (loader: () => Promise<Record<string, unknown>>, name: string) =>
+  lazy(() => loader().then(m => ({ default: m[name] as ComponentType })));
+
+const TAB_COMPONENTS: Record<string, ComponentType> = {
+  overview: lazyTab(() => import('@/components/dashboard/OverviewTab'), 'OverviewTab'),
+  variance: lazyTab(() => import('@/components/dashboard/VarianceTab'), 'VarianceTab'),
+  audit: lazyTab(() => import('@/components/dashboard/AuditTab'), 'AuditTab'),
+  financial: lazyTab(() => import('@/components/dashboard/FinancialTab'), 'FinancialTab'),
+  tat: lazyTab(() => import('@/components/dashboard/TATTab'), 'TATTab'),
+  denial: lazyTab(() => import('@/components/dashboard/DenialTab'), 'DenialTab'),
+  ar: lazyTab(() => import('@/components/dashboard/ARTab'), 'ARTab'),
+  payer: lazyTab(() => import('@/components/dashboard/PayerTab'), 'PayerTab'),
+  'payer-audit': lazyTab(() => import('@/components/dashboard/PayerAuditTab'), 'PayerAuditTab'),
+  mom: lazyTab(() => import('@/components/dashboard/MoMTab'), 'MoMTab'),
+  corporate: lazyTab(() => import('@/components/dashboard/CorporateTab'), 'CorporateTab'),
+  cashflow: lazyTab(() => import('@/components/dashboard/CashFlowTab'), 'CashFlowTab'),
+  profitability: lazyTab(() => import('@/components/dashboard/PayerProfitabilityTab'), 'PayerProfitabilityTab'),
+  dso: lazyTab(() => import('@/components/dashboard/DSOTab'), 'DSOTab'),
+  leakage: lazyTab(() => import('@/components/dashboard/LeakageTab'), 'LeakageTab'),
+  'ai-report': lazyTab(() => import('@/components/dashboard/AIReportTab'), 'AIReportTab'),
+};
+
+function TabLoading() {
+  return (
+    <div className="flex items-center justify-center py-24 gap-3 text-sm text-muted-foreground">
+      <div className="w-5 h-5 border-2 border-rcm-300 border-t-rcm-600 rounded-full animate-spin" />
+      Loading report…
+    </div>
+  );
+}
 
 function DashboardContent() {
   const { globalData, activeTab } = useDashboard();
@@ -34,6 +51,8 @@ function DashboardContent() {
     );
   }
 
+  const ActiveTab = TAB_COMPONENTS[activeTab];
+
   return (
     <div className="min-h-screen bg-background">
       <TopBar />
@@ -41,22 +60,9 @@ function DashboardContent() {
       <FilterBar />
       <div id="dashboard-tab-content" className="max-w-[1440px] mx-auto px-7 py-6">
         <ReportHeader />
-        {activeTab === 'overview' && <OverviewTab />}
-        {activeTab === 'variance' && <VarianceTab />}
-        {activeTab === 'audit' && <AuditTab />}
-        {activeTab === 'financial' && <FinancialTab />}
-        {activeTab === 'tat' && <TATTab />}
-        {activeTab === 'denial' && <DenialTab />}
-        {activeTab === 'ar' && <ARTab />}
-        {activeTab === 'payer' && <PayerTab />}
-        {activeTab === 'payer-audit' && <PayerAuditTab />}
-        {activeTab === 'mom' && <MoMTab />}
-        {activeTab === 'corporate' && <CorporateTab />}
-        {activeTab === 'cashflow' && <CashFlowTab />}
-        {activeTab === 'profitability' && <PayerProfitabilityTab />}
-        {activeTab === 'dso' && <DSOTab />}
-        {activeTab === 'leakage' && <LeakageTab />}
-        {activeTab === 'ai-report' && <AIReportTab />}
+        <Suspense fallback={<TabLoading />}>
+          {ActiveTab && <ActiveTab />}
+        </Suspense>
       </div>
       <DataQualityModal />
     </div>
