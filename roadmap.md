@@ -7,3 +7,4 @@
 - [x] Guard export surface against invalid `tabs` values to prevent preview crash
 - [x] Speed up app load and stop white screen on refresh
 - [x] Keep Variance reports available when optional AI connection settings are missing
+- [x] Reduce PDF and print generation time while retaining print-readable charts

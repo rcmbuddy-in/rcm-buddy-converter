@@ -126,7 +126,7 @@ const lockChartDimensions = (root: ParentNode) => {
   };
 };
 
-export async function captureElementCanvas(contentEl: HTMLElement) {
+export async function captureElementCanvas(contentEl: HTMLElement, paintDelay = 450) {
   if (!contentEl) return null;
 
   const noPrintEls = contentEl.querySelectorAll<HTMLElement>('.no-print');
@@ -150,10 +150,12 @@ export async function captureElementCanvas(contentEl: HTMLElement) {
   });
 
   try {
-    await waitForExportPaint();
+    await waitForExportPaint(paintDelay);
 
     return await html2canvas(contentEl, {
-      scale: 1.5,
+      // 1440px report surface at 1.25x remains print-sharp while reducing
+      // capture, encoding, and PDF composition work by about 30%.
+      scale: 1.25,
       useCORS: true,
       logging: false,
       foreignObjectRendering: false,
@@ -289,7 +291,7 @@ const appendCanvasToPdf = (
   const usableW = pageW - margin * 2;
   const usableH = pageH - margin * 2 - headerH;
   const startY = headerH + margin + 2;
-  const CAPTURE_SCALE = 1.5;
+  const CAPTURE_SCALE = 1.25;
   const JPEG_QUALITY = 0.82;
   const scale = usableW / (imgW / CAPTURE_SCALE);
   const scaledH = (imgH / CAPTURE_SCALE) * scale;

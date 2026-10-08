@@ -61,7 +61,9 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
     const captures: Array<{ tabId: string; canvas: HTMLCanvasElement }> = [];
 
     try {
-      await waitForExportPaint(900);
+      // Render all selected pages together so chart animations complete in parallel,
+      // then capture each page without adding another fixed delay per page.
+      await waitForExportPaint(1500);
 
       for (let i = 0; i < selectedTabs.length; i++) {
         const tabId = selectedTabs[i];
@@ -71,11 +73,14 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
         const section = document.querySelector<HTMLElement>(`[data-export-section="${tabId}"]`);
         if (!section) continue;
 
-        const canvas = await captureElementCanvas(section);
+        const canvas = await captureElementCanvas(section, 0);
         if (canvas) captures.push({ tabId, canvas });
       }
 
       if (captures.length === 0) return;
+
+      setProgress(mode === 'pdf' ? 'Composing PDF…' : 'Preparing print view…');
+      await waitForExportPaint(0);
 
       if (mode === 'pdf') {
         await exportTabsToPDF(captures, displayName(loadProfile(), globalData.hospitalName), globalData.dateRange);
